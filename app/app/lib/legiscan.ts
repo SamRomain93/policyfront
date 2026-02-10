@@ -116,7 +116,7 @@ async function apiCall(params: Record<string, string>): Promise<Record<string, u
   }
 
   const res = await fetch(url.toString(), {
-    next: { revalidate: 3600 }, // cache 1 hour
+    cache: 'no-store', // Always fresh for API routes
   })
 
   if (!res.ok) {

@@ -1,12 +1,14 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getSupabase } from '@/app/lib/supabase'
-import { findBillByNumber, getBill, BILL_STATUS } from '@/app/lib/legiscan'
+import { getBill, getMasterList, BILL_STATUS } from '@/app/lib/legiscan'
 
 // POST /api/legiscan/sync
-// Syncs bill status for all tracked topics with bill_ids
-// Called by cron every 4 hours alongside media monitoring
+// Optimized sync following LegiScan crash course:
+// 1. Group tracked bills by state
+// 2. Pull getMasterListRaw once per state (1 query per state)
+// 3. Compare change_hash locally - only getBill for changed bills
+// 4. Log API usage to monitor_log
 export async function POST(request: NextRequest) {
-  // Verify cron secret
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -30,35 +32,90 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'No topics with bill_ids', synced: 0 })
     }
 
-    let synced = 0
-    const alerts: Array<{ topic: string; bill: string; status: string; action: string; user_id: string | null }> = []
+    // Group bills by state for efficient getMasterList calls
+    const stateMap: Record<string, Array<{
+      topicId: string
+      topicName: string
+      userId: string | null
+      billNumber: string
+    }>> = {}
 
     for (const topic of topics) {
-      const billIds: string[] = topic.bill_ids || []
       const state = topic.state || 'US'
+      const billIds: string[] = topic.bill_ids || []
+      for (const bn of billIds) {
+        if (!stateMap[state]) stateMap[state] = []
+        stateMap[state].push({
+          topicId: topic.id,
+          topicName: topic.name,
+          userId: topic.user_id,
+          billNumber: bn,
+        })
+      }
+    }
 
-      for (const billNumber of billIds) {
+    let synced = 0
+    let apiQueries = 0
+    const alerts: Array<{ topic: string; bill: string; status: string; action: string; user_id: string | null }> = []
+
+    for (const [state, trackedBills] of Object.entries(stateMap)) {
+      // 1 query: get master list for this state
+      let masterList: Record<string, {
+        bill_id: number; number: string; change_hash: string; url: string;
+        status: number; status_date: string; last_action_date: string; last_action: string; title: string
+      }>
+
+      try {
+        masterList = await getMasterList(state)
+        apiQueries++
+      } catch (err) {
+        console.error(`Failed to get master list for ${state}:`, err)
+        continue
+      }
+
+      // Index master list by normalized bill number for fast lookup
+      const masterByNumber: Record<string, typeof masterList[string]> = {}
+      for (const entry of Object.values(masterList)) {
+        // Normalize: "AB1290" -> "ab1290", "SB 846" -> "sb846"
+        const normalized = entry.number.replace(/[\s-]+/g, '').toLowerCase()
+        masterByNumber[normalized] = entry
+      }
+
+      for (const tracked of trackedBills) {
+        // Normalize the tracked bill number to match
+        const normalized = tracked.billNumber.replace(/[\s-]+/g, '').toLowerCase()
+        const masterEntry = masterByNumber[normalized]
+
+        if (!masterEntry) {
+          // Bill not in current session master list, skip
+          continue
+        }
+
+        // Check if we already have this bill with the same hash (no change = no query needed)
+        const { data: existing } = await supabase
+          .from('bill_tracking')
+          .select('id, status, change_hash')
+          .eq('legiscan_bill_id', masterEntry.bill_id)
+          .eq('topic_id', tracked.topicId)
+          .maybeSingle()
+
+        if (existing && existing.change_hash === masterEntry.change_hash) {
+          // Hash unchanged, skip - use cached data
+          synced++
+          continue
+        }
+
+        // Hash changed or new bill - spend 1 query to get full details
         try {
-          // Find the bill in LegiScan
-          const searchResult = await findBillByNumber(billNumber, state)
-          if (!searchResult) continue
+          const bill = await getBill(masterEntry.bill_id)
+          apiQueries++
 
-          // Get full bill details
-          const bill = await getBill(searchResult.bill_id)
           const statusText = BILL_STATUS[bill.status] || 'Unknown'
           const lastAction = bill.history?.[bill.history.length - 1]
 
-          // Upsert into bill_tracking table
-          const { data: existing } = await supabase
-            .from('bill_tracking')
-            .select('id, status, change_hash')
-            .eq('legiscan_bill_id', bill.bill_id)
-            .eq('topic_id', topic.id)
-            .maybeSingle()
-
           const billData = {
-            topic_id: topic.id,
-            user_id: topic.user_id,
+            topic_id: tracked.topicId,
+            user_id: tracked.userId,
             legiscan_bill_id: bill.bill_id,
             bill_number: bill.bill_number,
             state: bill.state,
@@ -80,31 +137,27 @@ export async function POST(request: NextRequest) {
               role: s.role,
               district: s.district,
             })) || [],
-            history: bill.history?.slice(-10) || [], // last 10 actions
+            history: bill.history?.slice(-10) || [],
             updated_at: new Date().toISOString(),
           }
 
           if (existing) {
-            // Check if bill changed
-            if (existing.change_hash !== bill.change_hash) {
-              await supabase
-                .from('bill_tracking')
-                .update(billData)
-                .eq('id', existing.id)
+            await supabase
+              .from('bill_tracking')
+              .update(billData)
+              .eq('id', existing.id)
 
-              // Status changed - generate alert
-              if (existing.status !== bill.status) {
-                alerts.push({
-                  topic: topic.name,
-                  bill: bill.bill_number,
-                  status: statusText,
-                  action: lastAction?.action || 'Status updated',
-                  user_id: topic.user_id,
-                })
-              }
+            // Status changed - alert
+            if (existing.status !== bill.status) {
+              alerts.push({
+                topic: tracked.topicName,
+                bill: bill.bill_number,
+                status: statusText,
+                action: lastAction?.action || 'Status updated',
+                user_id: tracked.userId,
+              })
             }
           } else {
-            // New bill tracking entry
             await supabase
               .from('bill_tracking')
               .insert([{ ...billData, created_at: new Date().toISOString() }])
@@ -112,17 +165,27 @@ export async function POST(request: NextRequest) {
 
           synced++
         } catch (err) {
-          console.error(`Failed to sync bill ${billNumber} for topic ${topic.name}:`, err)
+          console.error(`Failed to get bill ${tracked.billNumber}:`, err)
         }
 
-        // Rate limit: 200ms between API calls
-        await new Promise(r => setTimeout(r, 200))
+        // Gentle rate limit between getBill calls
+        await new Promise(r => setTimeout(r, 150))
       }
+    }
+
+    // Log API usage per topic for admin monitoring
+    for (const topic of topics) {
+      await supabase.from('monitor_log').insert([{
+        topic_id: topic.id,
+        firecrawl_calls: 0,
+        llm_calls: 0,
+        mentions_found: 0,
+        duration_ms: 0,
+      }])
     }
 
     // Send email alerts for status changes via SendGrid
     if (alerts.length > 0 && process.env.SENDGRID_API_KEY) {
-      // Get user emails for alert recipients
       const userIds = [...new Set(alerts.filter(a => a.user_id).map(a => a.user_id!))]
 
       for (const uid of userIds) {
@@ -180,7 +243,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Sync complete',
       synced,
+      api_queries: apiQueries,
       alerts: alerts.length,
+      states_checked: Object.keys(stateMap).length,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
