@@ -13,6 +13,9 @@ export default function Home() {
             <a href="#pricing" className="text-sm text-muted hover:text-near-black transition hidden sm:block">
               Pricing
             </a>
+            <a href="/login" className="text-sm font-medium text-muted hover:text-near-black transition">
+              Log In
+            </a>
             <a href="#waitlist" className="bg-near-black text-cream-50 text-sm font-medium px-5 py-2.5 rounded-full hover:bg-near-black/85 transition">
               Join Waitlist
             </a>
