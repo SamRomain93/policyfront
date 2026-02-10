@@ -44,11 +44,35 @@ async function runMonitor(baseUrl: string) {
       }
     }
 
+    // Build state-scoped search query
+    const state = topic.state || ''
+    const STATE_NAMES: Record<string, string> = {
+      AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',
+      CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',
+      IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',
+      ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',
+      MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',
+      NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',
+      OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',
+      TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',
+      WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'Washington DC',
+    }
+    const stateName = STATE_NAMES[state] || ''
+
+    // Quote multi-word keywords to prevent false matches
+    const quotedKeywords = keywords.map((k: string) =>
+      k.includes(' ') ? `"${k}"` : k
+    )
+
     const allTerms = [
-      ...keywords,
+      ...quotedKeywords,
       ...expandedBillIds,
     ]
-    const query = allTerms.join(' OR ')
+    const termQuery = allTerms.join(' OR ')
+
+    // Scope by state name for precision
+    const stateScope = stateName ? ` ${stateName}` : ''
+    const query = `(${termQuery})${stateScope} policy legislation`
 
     try {
       const firecrawlKey = process.env.FIRECRAWL_API_KEY
@@ -72,7 +96,7 @@ async function runMonitor(baseUrl: string) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query: `${query} policy legislation`,
+          query,
           limit: 10,
           lang: 'en',
           country: 'us',
@@ -124,6 +148,44 @@ async function runMonitor(baseUrl: string) {
           }
         } catch {
           // Scrape failed, use metadata only
+        }
+
+        // Relevance check: verify article actually relates to this topic
+        const articleText = fullContent || item.metadata?.description || item.title || ''
+        const topicDesc = `${topic.name}${stateName ? ` in ${stateName}` : ''}: ${keywords.join(', ')}`
+        let isRelevant = true
+
+        if (articleText.length > 50 && process.env.ANTHROPIC_API_KEY) {
+          try {
+            const relRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'claude-haiku-4-5-20250501',
+                max_tokens: 10,
+                messages: [{
+                  role: 'user',
+                  content: `Is this article relevant to "${topicDesc}"? Reply ONLY "yes" or "no".\n\nTitle: ${item.title || ''}\nExcerpt: ${articleText.substring(0, 500)}`,
+                }],
+              }),
+            })
+            if (relRes.ok) {
+              const relData = await relRes.json()
+              const answer = relData.content?.[0]?.text?.trim().toLowerCase() || ''
+              isRelevant = answer.startsWith('yes')
+            }
+          } catch {
+            // If relevance check fails, default to including it
+          }
+        }
+
+        if (!isRelevant) {
+          skipped++
+          continue
         }
 
         const { data: insertedMention, error: insertError } = await supabase
