@@ -5,10 +5,9 @@ async function scoreSentimentLLM(title: string, excerpt: string): Promise<{
   sentiment: 'positive' | 'negative' | 'neutral'
   reasoning: string
 }> {
-  const apiKey = process.env.OPENAI_API_KEY
+  const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
-    // Fallback to keyword scoring
-    return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: 'keyword fallback' }
+    return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: 'keyword fallback (no API key)' }
   }
 
   const prompt = `Analyze the sentiment of this policy/media coverage from the perspective of a public affairs professional monitoring legislation and energy policy.
@@ -26,24 +25,24 @@ Consider:
 Respond in JSON only: {"sentiment":"positive|negative|neutral","reasoning":"one sentence why"}`
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'anthropic/claude-3.5-haiku',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
         max_tokens: 100,
-        response_format: { type: 'json_object' },
       }),
     })
 
     if (!res.ok) {
-      console.error('OpenAI error:', res.status)
-      return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: 'API error, keyword fallback' }
+      const errBody = await res.text()
+      console.error('OpenRouter error:', res.status, errBody)
+      return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: `API ${res.status}: ${errBody.substring(0, 80)}` }
     }
 
     const data = await res.json()
@@ -52,7 +51,13 @@ Respond in JSON only: {"sentiment":"positive|negative|neutral","reasoning":"one 
       return { sentiment: 'neutral', reasoning: 'empty response' }
     }
 
-    const parsed = JSON.parse(content)
+    // Extract JSON from response
+    const jsonMatch = content.match(/\{[^}]+\}/)
+    if (!jsonMatch) {
+      return { sentiment: 'neutral', reasoning: 'no JSON in response' }
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
     const sentiment = ['positive', 'negative', 'neutral'].includes(parsed.sentiment)
       ? parsed.sentiment
       : 'neutral'
@@ -145,7 +150,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     message: 'Sentiment analysis complete',
-    method: process.env.OPENAI_API_KEY ? 'gpt-4o-mini' : 'keyword',
+    method: process.env.OPENROUTER_API_KEY ? 'claude-haiku-4.5' : 'keyword',
     total: mentions.length,
     scored,
     results,
