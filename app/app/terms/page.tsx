@@ -1,22 +1,13 @@
-import Link from 'next/link'
+import SiteNav from '@/app/components/SiteNav'
+import SiteFooter from '@/app/components/SiteFooter'
 
 export default function TermsPage() {
   return (
     <main className="min-h-screen bg-cream-50">
-      {/* Nav */}
-      <nav className="border-b border-border/50 bg-cream-50">
-        <div className="max-w-3xl mx-auto px-6 sm:px-10 py-6 flex justify-between items-center">
-          <Link href="/" className="font-[family-name:var(--font-serif)] text-2xl tracking-tight">
-            PolicyFront
-          </Link>
-          <Link href="/privacy" className="text-sm text-muted hover:text-near-black transition">
-            Privacy Policy
-          </Link>
-        </div>
-      </nav>
+      <SiteNav />
 
       {/* Content */}
-      <article className="max-w-3xl mx-auto px-6 sm:px-10 py-16 sm:py-24">
+      <article className="max-w-3xl mx-auto px-6 sm:px-10 pt-32 pb-16 sm:pt-40 sm:pb-24">
         <header className="mb-16">
           <p className="text-sm font-medium tracking-widest uppercase text-accent mb-4">Legal</p>
           <h1 className="font-[family-name:var(--font-serif)] text-[clamp(2.25rem,4vw,3.5rem)] leading-tight mb-4">
@@ -119,7 +110,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="font-semibold text-lg mb-4">8. Limitation of Liability</h2>
-            <div className="space-y-4 uppercase-first">
+            <div className="space-y-4">
               <p>
                 TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, POLICYFRONT AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AGENTS, AFFILIATES, AND LICENSORS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR GOODWILL, ARISING OUT OF OR RELATED TO YOUR USE OF OR INABILITY TO USE THE SERVICE, REGARDLESS OF THE THEORY OF LIABILITY.
               </p>
@@ -204,16 +195,7 @@ export default function TermsPage() {
         </div>
       </article>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-10 px-6 sm:px-10">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-light-muted">© 2026 PolicyFront. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link href="/privacy" className="text-xs text-muted hover:text-near-black transition">Privacy</Link>
-            <Link href="/terms" className="text-xs text-accent font-medium">Terms</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   )
 }

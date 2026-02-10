@@ -1,27 +1,12 @@
 import WaitlistForm from './components/WaitlistForm'
+import SiteNav from './components/SiteNav'
+import SiteFooter from './components/SiteFooter'
 
 export default function Home() {
   return (
     <main className="overflow-hidden">
       {/* ─── Navigation ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-cream-50/80 border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 py-4 flex justify-between items-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl tracking-tight">
-            PolicyFront
-          </div>
-          <div className="flex items-center gap-6">
-            <a href="#pricing" className="text-sm text-muted hover:text-near-black transition hidden sm:block">
-              Pricing
-            </a>
-            <a href="/login" className="text-sm font-medium text-muted hover:text-near-black transition">
-              Log In
-            </a>
-            <a href="#waitlist" className="bg-near-black text-cream-50 text-sm font-medium px-5 py-2.5 rounded-full hover:bg-near-black/85 transition">
-              Join Waitlist
-            </a>
-          </div>
-        </div>
-      </nav>
+      <SiteNav />
 
       {/* ─── Hero ─── */}
       <section className="pt-40 pb-32 sm:pt-52 sm:pb-40 px-6 sm:px-10">
@@ -310,51 +295,7 @@ export default function Home() {
       </section>
 
       {/* ─── Footer ─── */}
-      <footer className="border-t border-border py-16 px-6 sm:px-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-10 mb-16">
-            <div className="sm:col-span-2 md:col-span-1">
-              <div className="font-[family-name:var(--font-serif)] text-xl mb-3">PolicyFront</div>
-              <p className="text-sm text-muted leading-relaxed">
-                The front line for<br />policy intelligence.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider text-light-muted">Product</h4>
-              <ul className="space-y-3">
-                {['Features', 'Pricing', 'Changelog'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-sm text-muted hover:text-near-black transition">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider text-light-muted">Company</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-sm text-muted hover:text-near-black transition">About</a></li>
-                <li><a href="#" className="text-sm text-muted hover:text-near-black transition">Contact</a></li>
-                <li><a href="/privacy" className="text-sm text-muted hover:text-near-black transition">Privacy</a></li>
-                <li><a href="/terms" className="text-sm text-muted hover:text-near-black transition">Terms</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider text-light-muted">Connect</h4>
-              <ul className="space-y-3">
-                {['Twitter', 'LinkedIn', 'Email'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-sm text-muted hover:text-near-black transition">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-border pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-xs text-light-muted">© 2026 PolicyFront. All rights reserved.</p>
-            <p className="text-xs text-light-muted">Washington, DC</p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   )
 }
