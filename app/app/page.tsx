@@ -332,11 +332,10 @@ export default function Home() {
             <div>
               <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider text-light-muted">Company</h4>
               <ul className="space-y-3">
-                {['About', 'Contact', 'Privacy', 'Terms'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-sm text-muted hover:text-near-black transition">{item}</a>
-                  </li>
-                ))}
+                <li><a href="#" className="text-sm text-muted hover:text-near-black transition">About</a></li>
+                <li><a href="#" className="text-sm text-muted hover:text-near-black transition">Contact</a></li>
+                <li><a href="/privacy" className="text-sm text-muted hover:text-near-black transition">Privacy</a></li>
+                <li><a href="/terms" className="text-sm text-muted hover:text-near-black transition">Terms</a></li>
               </ul>
             </div>
             <div>
