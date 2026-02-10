@@ -5,7 +5,7 @@ async function scoreSentimentLLM(title: string, excerpt: string): Promise<{
   sentiment: 'positive' | 'negative' | 'neutral'
   reasoning: string
 }> {
-  const apiKey = process.env.OPENROUTER_API_KEY
+  const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: 'keyword fallback (no API key)' }
   }
@@ -25,14 +25,15 @@ Consider:
 Respond in JSON only: {"sentiment":"positive|negative|neutral","reasoning":"one sentence why"}`
 
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-haiku',
+        model: 'claude-haiku-4-5-20241022',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
         max_tokens: 100,
@@ -41,12 +42,12 @@ Respond in JSON only: {"sentiment":"positive|negative|neutral","reasoning":"one 
 
     if (!res.ok) {
       const errBody = await res.text()
-      console.error('OpenRouter error:', res.status, errBody)
+      console.error('Anthropic error:', res.status, errBody)
       return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: `API ${res.status}: ${errBody.substring(0, 80)}` }
     }
 
     const data = await res.json()
-    const content = data.choices?.[0]?.message?.content
+    const content = data.content?.[0]?.text
     if (!content) {
       return { sentiment: 'neutral', reasoning: 'empty response' }
     }
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     message: 'Sentiment analysis complete',
-    method: process.env.OPENROUTER_API_KEY ? 'claude-haiku-4.5' : 'keyword',
+    method: process.env.ANTHROPIC_API_KEY ? 'claude-haiku-4.5' : 'keyword',
     total: mentions.length,
     scored,
     results,
