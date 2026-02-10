@@ -1,44 +1,89 @@
 import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
 
-// Simple keyword-based sentiment analysis
-// Fast, free, no API dependency. Can upgrade to LLM later.
-function analyzeSentiment(text: string): 'positive' | 'negative' | 'neutral' {
+async function scoreSentimentLLM(title: string, excerpt: string): Promise<{
+  sentiment: 'positive' | 'negative' | 'neutral'
+  reasoning: string
+}> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    // Fallback to keyword scoring
+    return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: 'keyword fallback' }
+  }
+
+  const prompt = `Analyze the sentiment of this policy/media coverage from the perspective of a public affairs professional monitoring legislation and energy policy.
+
+Title: ${title}
+Excerpt: ${excerpt}
+
+Classify as exactly one of: positive, negative, neutral
+
+Consider:
+- Is this coverage favorable or unfavorable to the policy/bill being discussed?
+- Does the framing support or oppose the legislative action?
+- Is this neutral reporting or does it take a clear stance?
+
+Respond in JSON only: {"sentiment":"positive|negative|neutral","reasoning":"one sentence why"}`
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 100,
+        response_format: { type: 'json_object' },
+      }),
+    })
+
+    if (!res.ok) {
+      console.error('OpenAI error:', res.status)
+      return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: 'API error, keyword fallback' }
+    }
+
+    const data = await res.json()
+    const content = data.choices?.[0]?.message?.content
+    if (!content) {
+      return { sentiment: 'neutral', reasoning: 'empty response' }
+    }
+
+    const parsed = JSON.parse(content)
+    const sentiment = ['positive', 'negative', 'neutral'].includes(parsed.sentiment)
+      ? parsed.sentiment
+      : 'neutral'
+
+    return { sentiment, reasoning: parsed.reasoning || '' }
+  } catch (err) {
+    console.error('LLM sentiment error:', err)
+    return { sentiment: keywordScore(title + ' ' + excerpt), reasoning: 'parse error, keyword fallback' }
+  }
+}
+
+// Keyword fallback
+function keywordScore(text: string): 'positive' | 'negative' | 'neutral' {
   const lower = text.toLowerCase()
+  const pos = ['benefit', 'support', 'growth', 'approved', 'passed', 'clean energy',
+    'tax credit', 'jobs', 'investment', 'savings', 'bipartisan', 'innovation',
+    'consumer protection', 'incentive', 'affordable', 'popular', 'opportunity']
+  const neg = ['oppose', 'threat', 'lawsuit', 'costly', 'surcharge', 'checkoff',
+    'forced', 'anti-solar', 'rollback', 'lobby', 'special interest', 'burden',
+    'controversial', 'criticism', 'defeated', 'blocked', 'penalty', 'repeal']
 
-  const positiveSignals = [
-    'benefit', 'benefits', 'support', 'supports', 'growth', 'opportunity',
-    'innovation', 'savings', 'success', 'improve', 'advances', 'progress',
-    'bipartisan', 'unanimous', 'approved', 'passed', 'signed into law',
-    'clean energy', 'renewable', 'affordable', 'popular', 'investment',
-    'incentive', 'tax credit', 'jobs', 'economic', 'consumer protection',
-  ]
+  let p = 0, n = 0
+  for (const s of pos) if (lower.includes(s)) p++
+  for (const s of neg) if (lower.includes(s)) n++
 
-  const negativeSignals = [
-    'oppose', 'opposes', 'opposition', 'threat', 'risk', 'concerns',
-    'controversial', 'criticism', 'critics', 'failed', 'defeated', 'blocked',
-    'lawsuit', 'penalty', 'burden', 'costly', 'expensive', 'mandated',
-    'tax', 'fee', 'surcharge', 'checkoff', 'forced', 'compulsory',
-    'anti-solar', 'anti-renewable', 'rollback', 'repeal', 'restrict',
-    'lobby', 'lobbyist', 'special interest', 'bailout', 'subsidy',
-  ]
-
-  let positiveScore = 0
-  let negativeScore = 0
-
-  for (const signal of positiveSignals) {
-    if (lower.includes(signal)) positiveScore++
-  }
-  for (const signal of negativeSignals) {
-    if (lower.includes(signal)) negativeScore++
-  }
-
-  if (positiveScore > negativeScore + 1) return 'positive'
-  if (negativeScore > positiveScore + 1) return 'negative'
+  if (p > n + 1) return 'positive'
+  if (n > p + 1) return 'negative'
   return 'neutral'
 }
 
-// POST: Score all unscored mentions
+// POST: Score unscored mentions with LLM
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const expectedToken = process.env.MONITOR_SECRET
@@ -51,31 +96,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Database not configured' }, { status: 503 })
   }
 
-  // Get unscored mentions
-  const { data: mentions, error } = await supabase
+  // Check for force rescore param
+  const url = new URL(request.url)
+  const force = url.searchParams.get('force') === 'true'
+
+  let query = supabase
     .from('mentions')
     .select('id, title, excerpt, content')
-    .is('sentiment', null)
-    .limit(100)
+    .limit(50)
+
+  if (!force) {
+    query = query.is('sentiment', null)
+  }
+
+  const { data: mentions, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
   if (!mentions || mentions.length === 0) {
-    return NextResponse.json({ message: 'No unscored mentions', scored: 0 })
+    return NextResponse.json({ message: 'No mentions to score', scored: 0 })
   }
 
   let scored = 0
+  const results: { title: string; sentiment: string; reasoning: string }[] = []
 
   for (const mention of mentions) {
-    const text = [mention.title, mention.excerpt, mention.content]
-      .filter(Boolean)
-      .join(' ')
+    const title = mention.title || ''
+    const excerpt = mention.excerpt || mention.content?.substring(0, 500) || ''
 
-    if (!text.trim()) continue
+    if (!title && !excerpt) continue
 
-    const sentiment = analyzeSentiment(text)
+    const { sentiment, reasoning } = await scoreSentimentLLM(title, excerpt)
 
     const { error: updateError } = await supabase
       .from('mentions')
@@ -83,15 +136,18 @@ export async function POST(request: NextRequest) {
       .eq('id', mention.id)
 
     if (updateError) {
-      console.error('Sentiment update error:', updateError.message)
+      console.error('Update error:', updateError.message)
     } else {
       scored++
+      results.push({ title: title.substring(0, 60), sentiment, reasoning })
     }
   }
 
   return NextResponse.json({
     message: 'Sentiment analysis complete',
+    method: process.env.OPENAI_API_KEY ? 'gpt-4o-mini' : 'keyword',
     total: mentions.length,
     scored,
+    results,
   })
 }
