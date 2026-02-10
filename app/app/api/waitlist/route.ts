@@ -1,0 +1,44 @@
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+
+function getSupabase() {
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_KEY
+  if (!url || !key) {
+    return null
+  }
+  return createClient(url, key)
+}
+
+export async function POST(request: Request) {
+  try {
+    const { email } = await request.json()
+
+    if (!email || !email.includes('@')) {
+      return NextResponse.json({ error: 'invalid_email' }, { status: 400 })
+    }
+
+    const supabase = getSupabase()
+    if (!supabase) {
+      // No DB configured yet, just log and return success for now
+      console.log('Waitlist signup (no DB):', email)
+      return NextResponse.json({ success: true, queued: true }, { status: 201 })
+    }
+
+    const { error } = await supabase
+      .from('waitlist')
+      .insert([{ email: email.toLowerCase().trim() }])
+
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'already_joined' }, { status: 409 })
+      }
+      console.error('Waitlist insert error:', error.message)
+      return NextResponse.json({ error: 'server_error' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true }, { status: 201 })
+  } catch {
+    return NextResponse.json({ error: 'server_error' }, { status: 500 })
+  }
+}

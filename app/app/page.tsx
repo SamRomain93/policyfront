@@ -1,3 +1,5 @@
+import WaitlistForm from './components/WaitlistForm'
+
 export default function Home() {
   return (
     <main className="overflow-hidden">
@@ -11,12 +13,9 @@ export default function Home() {
             <a href="#pricing" className="text-sm text-muted hover:text-near-black transition hidden sm:block">
               Pricing
             </a>
-            <button className="text-sm font-medium text-muted hover:text-near-black transition">
-              Sign In
-            </button>
-            <button className="bg-near-black text-cream-50 text-sm font-medium px-5 py-2.5 rounded-full hover:bg-near-black/85 transition">
-              Get Early Access
-            </button>
+            <a href="#waitlist" className="bg-near-black text-cream-50 text-sm font-medium px-5 py-2.5 rounded-full hover:bg-near-black/85 transition">
+              Join Waitlist
+            </a>
           </div>
         </div>
       </nav>
@@ -35,16 +34,8 @@ export default function Home() {
             Track legislation and media coverage in one place.
             Built for the people shaping policy.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 fade-in-up delay-300">
-            <button className="bg-near-black text-cream-50 px-8 py-4 rounded-full text-base font-medium hover:bg-near-black/85 transition flex items-center gap-2.5 group">
-              Start Free Trial
-              <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            <button className="text-muted text-base font-medium hover:text-near-black transition px-6 py-4">
-              See how it works
-            </button>
+          <div className="flex justify-center fade-in-up delay-300">
+            <WaitlistForm />
           </div>
         </div>
       </section>
@@ -242,9 +233,6 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-3.5 rounded-full border border-border text-sm font-medium hover:bg-cream-100 transition">
-                Start Free Trial
-              </button>
             </div>
 
             {/* Professional */}
@@ -272,9 +260,6 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-3.5 rounded-full bg-near-black text-cream-50 text-sm font-medium hover:bg-near-black/85 transition">
-                Start Free Trial
-              </button>
             </div>
 
             {/* Agency */}
@@ -297,33 +282,27 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-3.5 rounded-full border border-border text-sm font-medium hover:bg-cream-100 transition">
-                Contact Sales
-              </button>
             </div>
           </div>
 
           <p className="text-center text-sm text-light-muted mt-8">
-            All plans include a 14-day free trial. No credit card required.
+            Join the waitlist to lock in early-access pricing.
           </p>
         </div>
       </section>
 
       {/* ─── Final CTA ─── */}
-      <section className="py-28 sm:py-36 px-6 sm:px-10 bg-near-black text-cream-50">
+      <section id="waitlist" className="py-28 sm:py-36 px-6 sm:px-10 bg-near-black text-cream-50">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="font-[family-name:var(--font-serif)] text-[clamp(2rem,4vw,3.5rem)] leading-tight mb-6">
             The story is already being written.
           </h2>
           <p className="text-cream-200 text-lg sm:text-xl mb-10 leading-relaxed">
-            The only question is whether you see it first.
+            Join the waitlist. Be first to know when we launch.
           </p>
-          <button className="bg-cream-50 text-near-black px-8 py-4 rounded-full text-base font-medium hover:bg-white transition inline-flex items-center gap-2.5 group">
-            Get Early Access
-            <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+          <div className="flex justify-center">
+            <WaitlistForm variant="dark" />
+          </div>
         </div>
       </section>
 
