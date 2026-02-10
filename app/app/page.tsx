@@ -91,7 +91,7 @@ export default function Home() {
       </div>
 
       {/* ─── Features ─── */}
-      <section className="py-28 sm:py-40 px-6 sm:px-10">
+      <section id="features" className="py-28 sm:py-40 px-6 sm:px-10">
         <div className="max-w-6xl mx-auto">
           <p className="text-sm font-medium tracking-widest uppercase text-accent mb-6">
             Capabilities
