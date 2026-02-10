@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import AuthGuard from './components/AuthGuard'
 import { supabase } from '@/app/lib/supabase-browser'
@@ -15,6 +16,7 @@ const navItems = [
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -65,12 +67,62 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-near-black text-cream-50 px-6 py-4 flex items-center justify-between">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-near-black text-cream-50 px-6 py-4 flex items-center justify-between">
         <span className="font-[family-name:var(--font-serif)] text-xl">PolicyFront</span>
-        <button onClick={handleSignOut} className="text-sm text-cream-200/60 hover:text-cream-50 transition">
-          Sign Out
+        <button
+          onClick={() => setMobileNavOpen(!mobileNavOpen)}
+          className="p-1"
+          aria-label="Toggle navigation"
+        >
+          {mobileNavOpen ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          )}
         </button>
       </header>
+
+      {/* Mobile nav overlay */}
+      {mobileNavOpen && (
+        <div className="lg:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileNavOpen(false)} />
+          <nav className="absolute top-[60px] left-0 right-0 bg-near-black text-cream-50 px-6 py-4 space-y-1 border-t border-white/10">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition ${
+                    isActive
+                      ? 'text-cream-50 bg-white/15 font-medium'
+                      : 'text-cream-200 hover:text-cream-50 hover:bg-white/10'
+                  }`}
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+                  </svg>
+                  {item.label}
+                </Link>
+              )
+            })}
+            <button
+              onClick={() => { setMobileNavOpen(false); handleSignOut() }}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-cream-200/60 hover:text-cream-50 hover:bg-white/10 transition w-full mt-2 border-t border-white/10 pt-4"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+              Sign Out
+            </button>
+          </nav>
+        </div>
+      )}
 
       {/* Main content */}
       <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
