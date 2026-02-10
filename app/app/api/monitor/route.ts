@@ -36,6 +36,14 @@ async function runMonitor() {
         continue
       }
 
+      // Pre-fetch existing URLs to avoid paying Firecrawl for dupes
+      const { data: existingMentions } = await supabase
+        .from('mentions')
+        .select('url')
+        .eq('topic_id', topic.id)
+
+      const knownUrls = new Set((existingMentions || []).map((m: { url: string }) => m.url))
+
       const searchRes = await fetch('https://api.firecrawl.dev/v1/search', {
         method: 'POST',
         headers: {
@@ -47,9 +55,6 @@ async function runMonitor() {
           limit: 10,
           lang: 'en',
           country: 'us',
-          scrapeOptions: {
-            formats: ['markdown'],
-          },
         }),
       })
 
@@ -62,9 +67,16 @@ async function runMonitor() {
       const items = searchData.data || []
 
       let newMentions = 0
+      let skipped = 0
 
       for (const item of items) {
         if (!item.url) continue
+
+        // Skip URLs we already have
+        if (knownUrls.has(item.url)) {
+          skipped++
+          continue
+        }
 
         let outlet = ''
         try { outlet = new URL(item.url).hostname.replace('www.', '') } catch { /* skip */ }
@@ -75,8 +87,8 @@ async function runMonitor() {
             topic_id: topic.id,
             url: item.url,
             title: item.title || item.metadata?.title || '',
-            content: item.markdown?.substring(0, 5000) || '',
-            excerpt: item.metadata?.description || item.markdown?.substring(0, 300) || '',
+            content: item.metadata?.description || '',
+            excerpt: item.metadata?.description || '',
             outlet,
             discovered_at: new Date().toISOString(),
             source_type: 'rss',
@@ -94,6 +106,7 @@ async function runMonitor() {
       results.push({
         topic: topic.name,
         searched: items.length,
+        skipped,
         newMentions,
       })
     } catch (err) {
