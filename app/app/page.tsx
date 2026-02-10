@@ -78,7 +78,7 @@ export default function Home() {
                   LegiScan for bills. Google Alerts for news. A spreadsheet to connect the dots. Three Slack channels to coordinate the response.
                 </p>
                 <p>
-                  By the time you see the story, it's already shaped the conversation.
+                  By the time you see the story, it&apos;s already shaped the conversation.
                 </p>
               </div>
             </div>

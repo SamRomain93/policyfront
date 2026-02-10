@@ -1,11 +1,18 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  title: 'PolicyFront — Policy intelligence for public affairs',
+  title: 'PolicyFront - Policy intelligence for public affairs',
   description: 'Track legislation and media coverage in one place. Built for public affairs professionals who need to stay ahead of the narrative.',
   openGraph: {
-    title: 'PolicyFront — Policy intelligence for public affairs',
+    title: 'PolicyFront - Policy intelligence for public affairs',
     description: 'Track legislation and media coverage in one place.',
     type: 'website',
   },
@@ -17,12 +24,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Instrument Serif not available in next/font, load via Google Fonts CSS */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
           rel="stylesheet"
         />
       </head>
