@@ -214,7 +214,7 @@ export default function TopicsPage() {
         <div className="space-y-4">
           {topics.map((topic) => (
             <div key={topic.id} className="glass-card p-6 flex items-center justify-between">
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
                   <h3 className="font-semibold text-base">{topic.name}</h3>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -229,6 +229,11 @@ export default function TopicsPage() {
                       {topic.state}
                     </span>
                   )}
+                  {!topic.active && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-cream-200 text-light-muted">
+                      Paused
+                    </span>
+                  )}
                 </div>
                 {topic.keywords.length > 0 && (
                   <div className="flex gap-2 flex-wrap mt-2">
@@ -240,7 +245,43 @@ export default function TopicsPage() {
                   </div>
                 )}
               </div>
-              <div className={`w-2.5 h-2.5 rounded-full ${topic.active ? 'bg-emerald-500' : 'bg-light-muted'}`} />
+              <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={async () => {
+                    await fetch(`/api/topics/${topic.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ active: !topic.active }),
+                    })
+                    fetchTopics()
+                  }}
+                  className="text-xs text-muted hover:text-near-black transition px-2 py-1 rounded hover:bg-cream-100"
+                  title={topic.active ? 'Pause monitoring' : 'Resume monitoring'}
+                >
+                  {topic.active ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Delete "${topic.name}" and all its mentions?`)) return
+                    await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' })
+                    fetchTopics()
+                  }}
+                  className="text-xs text-light-muted hover:text-red-600 transition px-2 py-1 rounded hover:bg-red-50"
+                  title="Delete topic"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>
