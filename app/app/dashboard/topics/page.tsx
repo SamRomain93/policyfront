@@ -179,7 +179,17 @@ export default function TopicsPage() {
             </div>
             {type === 'bill' && (
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium mb-2">Bill IDs (comma-separated)</label>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="block text-sm font-medium">Bill IDs (comma-separated)</label>
+                  <span className="group relative">
+                    <svg className="w-4 h-4 text-light-muted cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                    </svg>
+                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 bg-near-black text-cream-50 text-xs rounded-lg px-3 py-2 leading-relaxed z-10 shadow-lg">
+                      Enter any format. We automatically search all variations: SB-954, SB 954, and SB954.
+                    </span>
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={billIds}
