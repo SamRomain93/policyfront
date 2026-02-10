@@ -1,8 +1,9 @@
 import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
+import { extractJournalist } from '@/app/lib/journalist-extract'
 
 // Core monitoring logic shared between GET (Vercel cron) and POST (manual)
-async function runMonitor() {
+async function runMonitor(baseUrl: string) {
   const supabase = getSupabase()
   if (!supabase) {
     return { error: 'Database not configured', status: 503 }
@@ -101,8 +102,9 @@ async function runMonitor() {
         let outlet = ''
         try { outlet = new URL(item.url).hostname.replace('www.', '') } catch { /* skip */ }
 
-        // Scrape full content only for NEW articles (worth the cost for sentiment)
+        // Scrape full content only for NEW articles (worth the cost for sentiment + journalist extraction)
         let fullContent = ''
+        let rawHtml = ''
         try {
           const scrapeRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
@@ -112,18 +114,19 @@ async function runMonitor() {
             },
             body: JSON.stringify({
               url: item.url,
-              formats: ['markdown'],
+              formats: ['markdown', 'html'],
             }),
           })
           if (scrapeRes.ok) {
             const scrapeData = await scrapeRes.json()
             fullContent = scrapeData.data?.markdown?.substring(0, 5000) || ''
+            rawHtml = scrapeData.data?.html?.substring(0, 20000) || ''
           }
         } catch {
           // Scrape failed, use metadata only
         }
 
-        const { error: insertError } = await supabase
+        const { data: insertedMention, error: insertError } = await supabase
           .from('mentions')
           .insert([{
             topic_id: topic.id,
@@ -135,6 +138,8 @@ async function runMonitor() {
             discovered_at: new Date().toISOString(),
             source_type: 'rss',
           }])
+          .select('id')
+          .maybeSingle()
 
         if (insertError) {
           if (insertError.code !== '23505') {
@@ -142,6 +147,30 @@ async function runMonitor() {
           }
         } else {
           newMentions++
+
+          // Extract journalist from article content
+          if (rawHtml || fullContent) {
+            try {
+              const journalist = extractJournalist(
+                rawHtml || '',
+                fullContent || item.metadata?.description || '',
+                outlet
+              )
+              if (journalist) {
+                await fetch(`${baseUrl}/api/journalists`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    ...journalist,
+                    beat: topic.name,
+                    mention_id: insertedMention?.id,
+                  }),
+                })
+              }
+            } catch {
+              // Journalist extraction is best-effort, don't fail the monitor
+            }
+          }
         }
       }
 
@@ -175,7 +204,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const result = await runMonitor()
+  const baseUrl = new URL(request.url).origin
+  const result = await runMonitor(baseUrl)
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
@@ -190,7 +220,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const result = await runMonitor()
+  const baseUrl = new URL(request.url).origin
+  const result = await runMonitor(baseUrl)
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
