@@ -72,7 +72,7 @@ async function runMonitor() {
       for (const item of items) {
         if (!item.url) continue
 
-        // Skip URLs we already have
+        // Skip URLs we already have - no Firecrawl cost for dupes
         if (knownUrls.has(item.url)) {
           skipped++
           continue
@@ -81,14 +81,36 @@ async function runMonitor() {
         let outlet = ''
         try { outlet = new URL(item.url).hostname.replace('www.', '') } catch { /* skip */ }
 
+        // Scrape full content only for NEW articles (worth the cost for sentiment)
+        let fullContent = ''
+        try {
+          const scrapeRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${firecrawlKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: item.url,
+              formats: ['markdown'],
+            }),
+          })
+          if (scrapeRes.ok) {
+            const scrapeData = await scrapeRes.json()
+            fullContent = scrapeData.data?.markdown?.substring(0, 5000) || ''
+          }
+        } catch {
+          // Scrape failed, use metadata only
+        }
+
         const { error: insertError } = await supabase
           .from('mentions')
           .insert([{
             topic_id: topic.id,
             url: item.url,
             title: item.title || item.metadata?.title || '',
-            content: item.metadata?.description || '',
-            excerpt: item.metadata?.description || '',
+            content: fullContent || item.metadata?.description || '',
+            excerpt: item.metadata?.description || fullContent?.substring(0, 300) || '',
             outlet,
             discovered_at: new Date().toISOString(),
             source_type: 'rss',
