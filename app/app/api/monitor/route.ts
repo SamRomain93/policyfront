@@ -25,9 +25,29 @@ async function runMonitor() {
 
   for (const topic of topics) {
     const keywords = topic.keywords as string[]
-    if (!keywords || keywords.length === 0) continue
+    const billIds = (topic.bill_ids as string[]) || []
+    if (keywords.length === 0 && billIds.length === 0) continue
 
-    const query = keywords.join(' OR ')
+    // Expand bill IDs into all common formats
+    // e.g. "SB-954" → "SB-954" OR "SB 954" OR "SB954"
+    const expandedBillIds: string[] = []
+    for (const bill of billIds) {
+      const normalized = bill.replace(/[-\s]/g, '')
+      const match = normalized.match(/^([A-Za-z]+)(\d+)$/)
+      if (match) {
+        const prefix = match[1].toUpperCase()
+        const num = match[2]
+        expandedBillIds.push(`"${prefix}-${num}"`, `"${prefix} ${num}"`, `"${prefix}${num}"`)
+      } else {
+        expandedBillIds.push(`"${bill}"`)
+      }
+    }
+
+    const allTerms = [
+      ...keywords,
+      ...expandedBillIds,
+    ]
+    const query = allTerms.join(' OR ')
 
     try {
       const firecrawlKey = process.env.FIRECRAWL_API_KEY
