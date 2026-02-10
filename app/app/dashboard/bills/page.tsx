@@ -35,6 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
   Chaptered: 'bg-emerald-50 text-emerald-700',
   Draft: 'bg-gray-50 text-gray-600',
   'N/A': 'bg-gray-50 text-gray-600',
+  'Awaiting Sync': 'bg-amber-50 text-amber-700',
 }
 
 export default function BillsPage() {

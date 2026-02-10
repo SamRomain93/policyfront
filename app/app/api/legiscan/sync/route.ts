@@ -120,21 +120,61 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send Telegram alerts for status changes
-    if (alerts.length > 0 && process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-      const msg = alerts.map(a =>
-        `📋 *${a.bill}* (${a.topic})\nStatus: *${a.status}*\n${a.action}`
-      ).join('\n\n')
+    // Send email alerts for status changes via SendGrid
+    if (alerts.length > 0 && process.env.SENDGRID_API_KEY) {
+      // Get user emails for alert recipients
+      const userIds = [...new Set(alerts.filter(a => a.user_id).map(a => a.user_id!))]
 
-      await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: process.env.TELEGRAM_CHAT_ID,
-          text: `🏛️ *Bill Status Updates*\n\n${msg}`,
-          parse_mode: 'Markdown',
-        }),
-      })
+      for (const uid of userIds) {
+        const { data: userData } = await supabase.auth.admin.getUserById(uid)
+        const email = userData?.user?.email
+        if (!email) continue
+
+        const userAlerts = alerts.filter(a => a.user_id === uid)
+        const alertRows = userAlerts.map(a => `
+          <tr>
+            <td style="padding:16px 0;border-bottom:1px solid #F0EDE6;">
+              <div style="font-size:16px;font-weight:500;color:#1A1A1A;margin-bottom:4px;">${a.bill}</div>
+              <div style="font-size:13px;color:#6B6B6B;margin-bottom:2px;">Topic: ${a.topic}</div>
+              <div style="font-size:14px;color:#1A1A1A;">Status: <strong>${a.status}</strong></div>
+              <div style="font-size:13px;color:#6B6B6B;margin-top:2px;">${a.action}</div>
+            </td>
+          </tr>
+        `).join('')
+
+        await fetch('https://api.sendgrid.com/v3/mail/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email }] }],
+            from: { email: 'alerts@policyfront.io', name: 'PolicyFront' },
+            subject: `Bill Status Update: ${userAlerts.map(a => a.bill).join(', ')}`,
+            content: [{
+              type: 'text/html',
+              value: `
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FAFAF8;">
+                  <tr><td align="center" style="padding:40px 16px;">
+                    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+                      <tr><td style="text-align:center;padding-bottom:32px;">
+                        <h1 style="font-family:Georgia,serif;font-size:28px;color:#1A1A1A;margin:0;">PolicyFront</h1>
+                      </td></tr>
+                      <tr><td style="background:#FFFFFF;border-radius:12px;border:1px solid #E5E5E0;padding:32px;">
+                        <h2 style="font-family:Georgia,serif;font-size:20px;color:#1A1A1A;margin:0 0 20px;">Bill Status Alert</h2>
+                        <table width="100%" cellpadding="0" cellspacing="0">${alertRows}</table>
+                      </td></tr>
+                      <tr><td style="text-align:center;padding-top:24px;">
+                        <a href="https://policyfront.io/dashboard/bills" style="display:inline-block;background:#1A1A1A;color:#FAFAF8;padding:12px 28px;border-radius:100px;text-decoration:none;font-size:14px;">View Bills</a>
+                      </td></tr>
+                    </table>
+                  </td></tr>
+                </table>`,
+            }],
+          }),
+        })
+      }
     }
 
     return NextResponse.json({
