@@ -16,7 +16,6 @@ export default function SiteFooter() {
             <ul className="space-y-3">
               <li><Link href="/#features" className="text-sm text-muted hover:text-near-black transition">Features</Link></li>
               <li><Link href="/#pricing" className="text-sm text-muted hover:text-near-black transition">Pricing</Link></li>
-              <li><span className="text-sm text-light-muted">Changelog</span></li>
             </ul>
           </div>
           <div>
