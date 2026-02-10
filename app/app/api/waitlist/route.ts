@@ -1,14 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse } from 'next/server'
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_KEY
-  if (!url || !key) {
-    return null
-  }
-  return createClient(url, key)
-}
 
 export async function POST(request: Request) {
   try {
@@ -20,7 +11,6 @@ export async function POST(request: Request) {
 
     const supabase = getSupabase()
     if (!supabase) {
-      // No DB configured yet, just log and return success for now
       console.log('Waitlist signup (no DB):', email)
       return NextResponse.json({ success: true, queued: true }, { status: 201 })
     }
