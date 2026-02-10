@@ -25,6 +25,7 @@ export default function TopicsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   // Form state
   const [name, setName] = useState('')
@@ -51,35 +52,55 @@ export default function TopicsPage() {
     fetchTopics()
   }, [fetchTopics])
 
+  const resetForm = () => {
+    setName('')
+    setType('topic')
+    setState('')
+    setKeywords('')
+    setBillIds('')
+    setEditingId(null)
+    setShowForm(false)
+  }
+
+  const startEdit = (topic: Topic) => {
+    setEditingId(topic.id)
+    setName(topic.name)
+    setType(topic.type)
+    setState(topic.state || '')
+    setKeywords(topic.keywords.join(', '))
+    setBillIds(topic.bill_ids.join(', '))
+    setShowForm(true)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
     setSaving(true)
     try {
-      const res = await fetch('/api/topics', {
-        method: 'POST',
+      const payload = {
+        name: name.trim(),
+        type,
+        state: state || null,
+        keywords: keywords.split(',').map(k => k.trim()).filter(Boolean),
+        bill_ids: billIds.split(',').map(b => b.trim()).filter(Boolean),
+      }
+
+      const url = editingId ? `/api/topics/${editingId}` : '/api/topics'
+      const method = editingId ? 'PATCH' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          type,
-          state: state || null,
-          keywords: keywords.split(',').map(k => k.trim()).filter(Boolean),
-          bill_ids: billIds.split(',').map(b => b.trim()).filter(Boolean),
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (res.ok) {
-        setName('')
-        setType('topic')
-        setState('')
-        setKeywords('')
-        setBillIds('')
-        setShowForm(false)
+        resetForm()
         fetchTopics()
       }
     } catch (err) {
-      console.error('Failed to create topic:', err)
+      console.error('Failed to save topic:', err)
     } finally {
       setSaving(false)
     }
@@ -96,7 +117,7 @@ export default function TopicsPage() {
           <p className="text-muted">Bills and policy areas you&apos;re monitoring.</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { resetForm(); setShowForm(true) }}
           className="bg-near-black text-cream-50 px-5 py-2.5 rounded-full text-sm font-medium hover:bg-near-black/85 transition flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -109,7 +130,7 @@ export default function TopicsPage() {
       {/* Add topic form */}
       {showForm && (
         <form onSubmit={handleSubmit} className="glass-card p-8 mb-8">
-          <h2 className="font-semibold text-lg mb-6">New Topic</h2>
+          <h2 className="font-semibold text-lg mb-6">{editingId ? 'Edit Topic' : 'New Topic'}</h2>
           <div className="grid sm:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">Name</label>
@@ -175,11 +196,11 @@ export default function TopicsPage() {
               disabled={saving || !name.trim()}
               className="bg-near-black text-cream-50 px-6 py-2.5 rounded-full text-sm font-medium hover:bg-near-black/85 transition disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Create Topic'}
+              {saving ? 'Saving...' : editingId ? 'Update Topic' : 'Create Topic'}
             </button>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={resetForm}
               className="text-sm text-muted hover:text-near-black transition"
             >
               Cancel
@@ -246,6 +267,15 @@ export default function TopicsPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={() => startEdit(topic)}
+                  className="text-xs text-muted hover:text-accent transition px-2 py-1 rounded hover:bg-accent/5"
+                  title="Edit topic"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                  </svg>
+                </button>
                 <button
                   onClick={async () => {
                     await fetch(`/api/topics/${topic.id}`, {
