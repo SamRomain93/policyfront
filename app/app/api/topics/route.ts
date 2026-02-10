@@ -1,16 +1,25 @@
 import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = getSupabase()
   if (!supabase) {
     return NextResponse.json({ error: 'Database not configured' }, { status: 503 })
   }
 
-  const { data, error } = await supabase
+  // Get user_id from query param (set by client with auth)
+  const userId = request.nextUrl.searchParams.get('user_id')
+
+  let query = supabase
     .from('topics')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (userId) {
+    query = query.eq('user_id', userId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -27,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, type, state, keywords, bill_ids } = body
+    const { name, type, state, keywords, bill_ids, user_id } = body
 
     if (!name || !type) {
       return NextResponse.json({ error: 'name and type are required' }, { status: 400 })
@@ -41,6 +50,7 @@ export async function POST(request: NextRequest) {
         state: state || null,
         keywords: keywords || [],
         bill_ids: bill_ids || [],
+        user_id: user_id || null,
       }])
       .select()
       .single()

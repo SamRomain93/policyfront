@@ -80,6 +80,20 @@ export default function LoginPage() {
       return
     }
 
+    // Check if user has any topics, if not redirect to onboarding
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      try {
+        const topicsRes = await fetch(`/api/topics?user_id=${session.user.id}`)
+        const topics = await topicsRes.json()
+        if (Array.isArray(topics) && topics.length === 0) {
+          router.push('/onboarding')
+          return
+        }
+      } catch {
+        // If check fails, just go to dashboard
+      }
+    }
     router.push('/dashboard')
   }
 

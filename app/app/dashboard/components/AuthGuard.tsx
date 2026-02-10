@@ -1,34 +1,48 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/app/lib/supabase-browser'
-import type { User } from '@supabase/supabase-js'
+import type { User, Session } from '@supabase/supabase-js'
+
+type AuthContextType = {
+  user: User | null
+  session: Session | null
+}
+
+const AuthContext = createContext<AuthContextType>({ user: null, session: null })
+
+export function useAuth() {
+  return useContext(AuthContext)
+}
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      if (!s) {
         router.replace('/login')
         return
       }
-      setUser(session.user)
+      setUser(s.user)
+      setSession(s)
       setLoading(false)
     }
 
     checkAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (!s) {
         router.replace('/login')
         return
       }
-      setUser(session.user)
+      setUser(s.user)
+      setSession(s)
       setLoading(false)
     })
 
@@ -48,5 +62,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  return <>{children}</>
+  return (
+    <AuthContext.Provider value={{ user, session }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }

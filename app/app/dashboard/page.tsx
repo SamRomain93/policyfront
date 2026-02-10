@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from './components/AuthGuard'
 
 type Stats = {
   activeTopics: number
@@ -32,14 +33,16 @@ function timeAgo(date: string) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentMentions, setRecentMentions] = useState<Mention[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
     try {
+      const topicsUrl = user ? `/api/topics?user_id=${user.id}` : '/api/topics'
       const [topicsRes, mentionsRes] = await Promise.all([
-        fetch('/api/topics'),
+        fetch(topicsUrl),
         fetch('/api/mentions'),
       ])
 
@@ -71,7 +74,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     fetchData()

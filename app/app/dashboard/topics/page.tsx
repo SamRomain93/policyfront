@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '../components/AuthGuard'
 
 type Topic = {
   id: string
@@ -21,6 +22,7 @@ const US_STATES = [
 ]
 
 export default function TopicsPage() {
+  const { user } = useAuth()
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -36,7 +38,8 @@ export default function TopicsPage() {
 
   const fetchTopics = useCallback(async () => {
     try {
-      const res = await fetch('/api/topics')
+      const url = user ? `/api/topics?user_id=${user.id}` : '/api/topics'
+      const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         setTopics(data)
@@ -46,7 +49,7 @@ export default function TopicsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     fetchTopics()
@@ -84,6 +87,7 @@ export default function TopicsPage() {
         state: state || null,
         keywords: keywords.split(',').map(k => k.trim()).filter(Boolean),
         bill_ids: billIds.split(',').map(b => b.trim()).filter(Boolean),
+        ...(editingId ? {} : { user_id: user?.id }),
       }
 
       const url = editingId ? `/api/topics/${editingId}` : '/api/topics'
