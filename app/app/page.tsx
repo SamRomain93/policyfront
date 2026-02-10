@@ -195,7 +195,7 @@ export default function Home() {
           </blockquote>
           <div>
             <div className="font-semibold text-base">Sam Romain</div>
-            <div className="text-sm text-muted mt-1">Public Affairs Manager, Sunrun</div>
+            <div className="text-sm text-muted mt-1">Chairman, Americans for Energy Dominance</div>
           </div>
         </div>
       </section>
