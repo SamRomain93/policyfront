@@ -14,6 +14,7 @@ type Journalist = {
   linkedin: string | null
   website: string | null
   beat: string[] | null
+  state: string | null
   article_count: number
   avg_sentiment: number | null
   last_article_date: string | null
@@ -74,6 +75,7 @@ export default function JournalistsPage() {
   const [sort, setSort] = useState('article_count')
   const [search, setSearch] = useState('')
   const [beatFilter, setBeatFilter] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -117,19 +119,30 @@ export default function JournalistsPage() {
     return Array.from(beats).sort()
   }, [journalists])
 
+  // Get unique states for filter
+  const allStates = useMemo(() => {
+    const states = new Set<string>()
+    journalists.forEach(j => { if (j.state) states.add(j.state) })
+    return Array.from(states).sort()
+  }, [journalists])
+
   // Get unique outlets for stats
   const outlets = useMemo(
     () => [...new Set(journalists.map(j => j.outlet).filter(Boolean))],
     [journalists]
   )
 
-  // Client-side sort for relationship score
+  // Client-side filtering and sort
   const sortedJournalists = useMemo(() => {
-    if (sort === 'relationship') {
-      return [...journalists].sort((a, b) => relationshipScore(b) - relationshipScore(a))
+    let filtered = journalists
+    if (stateFilter) {
+      filtered = filtered.filter(j => j.state === stateFilter)
     }
-    return journalists
-  }, [journalists, sort])
+    if (sort === 'relationship') {
+      return [...filtered].sort((a, b) => relationshipScore(b) - relationshipScore(a))
+    }
+    return filtered
+  }, [journalists, sort, stateFilter])
 
   const handleAddJournalist = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -316,6 +329,18 @@ export default function JournalistsPage() {
             className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-white text-near-black placeholder:text-light-muted focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 transition text-sm"
           />
         </div>
+        {allStates.length > 0 && (
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-border bg-white text-near-black text-sm focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 transition"
+          >
+            <option value="">All States</option>
+            {allStates.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        )}
         {allBeats.length > 0 && (
           <select
             value={beatFilter}
@@ -362,7 +387,7 @@ export default function JournalistsPage() {
             </svg>
           </div>
           <h3 className="font-medium mb-2">
-            {search || beatFilter ? 'No journalists match your filters' : 'No journalists yet'}
+            {search || beatFilter || stateFilter ? 'No journalists match your filters' : 'No journalists yet'}
           </h3>
           <p className="text-sm text-muted">
             {search || beatFilter
@@ -400,6 +425,9 @@ export default function JournalistsPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted">
+                        {j.state && (
+                          <span className="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded">{j.state}</span>
+                        )}
                         {j.outlet && <span>{j.outlet}</span>}
                         {j.beat && j.beat.length > 0 && (
                           <>
