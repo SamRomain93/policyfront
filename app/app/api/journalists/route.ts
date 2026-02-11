@@ -120,7 +120,24 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ journalists: data, total: totalCount || 0 })
+  // Get global stats (unfiltered)
+  const [{ count: globalTotal }, { count: globalWithContact }] = await Promise.all([
+    supabase.from('journalists').select('id', { count: 'exact', head: true }),
+    supabase.from('journalists').select('id', { count: 'exact', head: true })
+      .or('email.neq.null,twitter.neq.null,phone.neq.null'),
+  ])
+  const { data: outletData } = await supabase.from('journalists').select('outlet').not('outlet', 'is', null)
+  const globalOutlets = new Set((outletData || []).map(o => o.outlet)).size
+
+  return NextResponse.json({
+    journalists: data,
+    total: totalCount || 0,
+    stats: {
+      totalJournalists: globalTotal || 0,
+      totalOutlets: globalOutlets,
+      totalWithContact: globalWithContact || 0,
+    },
+  })
 }
 
 // Upsert journalist from extraction

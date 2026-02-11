@@ -80,6 +80,8 @@ export default function JournalistsPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(50)
   const [totalCount, setTotalCount] = useState(0)
+  const [totalOutlets, setTotalOutlets] = useState(0)
+  const [totalWithContact, setTotalWithContact] = useState(0)
   const [saving, setSaving] = useState(false)
 
   // Add form state
@@ -106,6 +108,10 @@ export default function JournalistsPage() {
         if (data.journalists) {
           setJournalists(data.journalists)
           setTotalCount(data.total || 0)
+          if (data.stats) {
+            setTotalOutlets(data.stats.totalOutlets || 0)
+            setTotalWithContact(data.stats.totalWithContact || 0)
+          }
         } else if (Array.isArray(data)) {
           setJournalists(data)
           setTotalCount(data.length)
@@ -304,20 +310,18 @@ export default function JournalistsPage() {
         </form>
       )}
 
-      {/* Stats */}
+      {/* Stats - always shows full database totals */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{journalists.length}</div>
+          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{totalCount}</div>
           <div className="text-xs text-muted uppercase tracking-wide mt-1">Journalists</div>
         </div>
         <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{outlets.length}</div>
+          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{totalOutlets}</div>
           <div className="text-xs text-muted uppercase tracking-wide mt-1">Outlets</div>
         </div>
         <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">
-            {journalists.filter(j => j.email || j.twitter || j.phone).length}
-          </div>
+          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{totalWithContact}</div>
           <div className="text-xs text-muted uppercase tracking-wide mt-1">With Contact</div>
         </div>
       </div>
