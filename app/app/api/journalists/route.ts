@@ -37,26 +37,39 @@ export async function GET(request: NextRequest) {
 
   const outlet = request.nextUrl.searchParams.get('outlet')
   const beat = request.nextUrl.searchParams.get('beat')
+  const stateParam = request.nextUrl.searchParams.get('state')
   const search = request.nextUrl.searchParams.get('search')
   const sort = request.nextUrl.searchParams.get('sort') || 'article_count'
   const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50')
+  const offset = parseInt(request.nextUrl.searchParams.get('offset') || '0')
   const userId = request.nextUrl.searchParams.get('user_id')
+
+  // Count query (same filters, no limit/offset)
+  let countQuery = supabase.from('journalists').select('id', { count: 'exact', head: true })
 
   let query = supabase
     .from('journalists')
     .select('*')
-    .limit(Math.min(limit, 500))
+    .range(offset, offset + limit - 1)
 
   if (search) {
     query = query.or(`name.ilike.%${search}%,outlet.ilike.%${search}%`)
+    countQuery = countQuery.or(`name.ilike.%${search}%,outlet.ilike.%${search}%`)
   }
 
   if (outlet) {
     query = query.eq('outlet', outlet)
+    countQuery = countQuery.eq('outlet', outlet)
+  }
+
+  if (stateParam) {
+    query = query.eq('state', stateParam)
+    countQuery = countQuery.eq('state', stateParam)
   }
 
   if (beat) {
     query = query.contains('beat', [beat])
+    countQuery = countQuery.contains('beat', [beat])
   }
 
   if (sort === 'recent') {
@@ -67,7 +80,7 @@ export async function GET(request: NextRequest) {
     query = query.order('article_count', { ascending: false })
   }
 
-  const { data, error } = await query
+  const [{ data, error }, { count: totalCount }] = await Promise.all([query, countQuery])
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -107,7 +120,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json({ journalists: data, total: totalCount || 0 })
 }
 
 // Upsert journalist from extraction

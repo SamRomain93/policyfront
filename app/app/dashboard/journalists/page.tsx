@@ -77,6 +77,9 @@ export default function JournalistsPage() {
   const [beatFilter, setBeatFilter] = useState('')
   const [stateFilter, setStateFilter] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(50)
+  const [totalCount, setTotalCount] = useState(0)
   const [saving, setSaving] = useState(false)
 
   // Add form state
@@ -91,21 +94,29 @@ export default function JournalistsPage() {
   const fetchJournalists = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ sort, limit: '500' })
+      const offset = (page - 1) * perPage
+      const params = new URLSearchParams({ sort, limit: String(perPage), offset: String(offset) })
       if (user?.id) params.set('user_id', user.id)
       if (search.trim()) params.set('search', search.trim())
       if (beatFilter) params.set('beat', beatFilter)
+      if (stateFilter) params.set('state', stateFilter)
       const res = await fetch(`/api/journalists?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setJournalists(data)
+        if (data.journalists) {
+          setJournalists(data.journalists)
+          setTotalCount(data.total || 0)
+        } else if (Array.isArray(data)) {
+          setJournalists(data)
+          setTotalCount(data.length)
+        }
       }
     } catch (err) {
       console.error('Failed to fetch journalists:', err)
     } finally {
       setLoading(false)
     }
-  }, [sort, search, beatFilter, user])
+  }, [sort, search, beatFilter, stateFilter, user, page, perPage])
 
   useEffect(() => {
     const timer = setTimeout(() => fetchJournalists(), search ? 300 : 0)
@@ -132,17 +143,13 @@ export default function JournalistsPage() {
     [journalists]
   )
 
-  // Client-side filtering and sort
+  // Client-side sort for relationship score (everything else is server-side)
   const sortedJournalists = useMemo(() => {
-    let filtered = journalists
-    if (stateFilter) {
-      filtered = filtered.filter(j => j.state === stateFilter)
-    }
     if (sort === 'relationship') {
-      return [...filtered].sort((a, b) => relationshipScore(b) - relationshipScore(a))
+      return [...journalists].sort((a, b) => relationshipScore(b) - relationshipScore(a))
     }
-    return filtered
-  }, [journalists, sort, stateFilter])
+    return journalists
+  }, [journalists, sort])
 
   const handleAddJournalist = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -332,7 +339,7 @@ export default function JournalistsPage() {
         {allStates.length > 0 && (
           <select
             value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
+            onChange={(e) => { setStateFilter(e.target.value); setPage(1) }}
             className="px-3 py-2.5 rounded-lg border border-border bg-white text-near-black text-sm focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 transition"
           >
             <option value="">All States</option>
@@ -344,7 +351,7 @@ export default function JournalistsPage() {
         {allBeats.length > 0 && (
           <select
             value={beatFilter}
-            onChange={(e) => setBeatFilter(e.target.value)}
+            onChange={(e) => { setBeatFilter(e.target.value); setPage(1) }}
             className="px-3 py-2.5 rounded-lg border border-border bg-white text-near-black text-sm focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 transition"
           >
             <option value="">All Beats</option>
@@ -396,6 +403,7 @@ export default function JournalistsPage() {
           </p>
         </div>
       ) : (
+      <>
         <div className="space-y-3">
           {sortedJournalists.map(j => {
             const relScore = relationshipScore(j)
@@ -461,6 +469,47 @@ export default function JournalistsPage() {
             )
           })}
         </div>
+
+        {/* Pagination */}
+        {totalCount > perPage && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">
+                {((page - 1) * perPage) + 1}-{Math.min(page * perPage, totalCount)} of {totalCount}
+              </span>
+              <select
+                value={perPage}
+                onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1) }}
+                className="px-2 py-1 rounded border border-border bg-white text-xs text-near-black focus:outline-none"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-xs text-light-muted">per page</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-cream-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+              <span className="px-3 py-1.5 text-xs text-muted">
+                {page} / {Math.ceil(totalCount / perPage)}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(Math.ceil(totalCount / perPage), p + 1))}
+                disabled={page >= Math.ceil(totalCount / perPage)}
+                className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-cream-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </>
       )}
     </div>
   )
