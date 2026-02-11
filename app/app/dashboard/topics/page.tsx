@@ -113,12 +113,12 @@ export default function TopicsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-10">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl mb-2">
+          <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">
             Topics
           </h1>
-          <p className="text-muted">Bills and policy areas you&apos;re monitoring.</p>
+          <p className="text-sm text-muted">Bills and policy areas you&apos;re monitoring.</p>
         </div>
         <button
           onClick={() => { resetForm(); setShowForm(true) }}

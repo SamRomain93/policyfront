@@ -153,7 +153,7 @@ export default function MentionsPage() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-8">
         <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">Mentions</h1>
         <p className="text-sm text-muted">
           {mentions.length} articles across {stories.length} stories

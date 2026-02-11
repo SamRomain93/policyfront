@@ -95,11 +95,11 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-10">
-        <h1 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl mb-2">
+      <div className="mb-8">
+        <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">
           Dashboard
         </h1>
-        <p className="text-muted">Your policy intelligence at a glance.</p>
+        <p className="text-sm text-muted">Your policy intelligence at a glance.</p>
       </div>
 
       {/* Stats cards */}
