@@ -37,6 +37,11 @@ const BLOCKED_PATTERNS = [
   /msba\.org/,
   /barass/,
 
+  // Advocacy/lobbying orgs (not news outlets)
+  /conservationleague/,
+  /collegeaccess/,
+  /schoolboards/,
+
   // Meeting minutes / internal docs
   /eminutes\.com/,
   /blob\.core\.windows\.net/,
