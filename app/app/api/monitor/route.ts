@@ -317,6 +317,41 @@ async function runMonitor(baseUrl: string) {
           }
 
           // Coverage attribution handled above
+
+          // Sentiment scoring via Claude Haiku
+          if (insertedMention?.id && process.env.ANTHROPIC_API_KEY && articleText.length > 50) {
+            try {
+              const sentRes = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                  'x-api-key': process.env.ANTHROPIC_API_KEY,
+                  'anthropic-version': '2023-06-01',
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'claude-haiku-4-5-20250501',
+                  max_tokens: 20,
+                  messages: [{
+                    role: 'user',
+                    content: `Classify the sentiment of this article toward the topic "${topic.name}" as exactly one word: positive, negative, or neutral.\n\nTitle: ${item.title || ''}\nExcerpt: ${articleText.substring(0, 500)}`,
+                  }],
+                }),
+              })
+              if (sentRes.ok) {
+                const sentData = await sentRes.json()
+                const sentAnswer = (sentData.content?.[0]?.text || '').trim().toLowerCase()
+                const sentiment = ['positive', 'negative', 'neutral'].includes(sentAnswer) ? sentAnswer : null
+                if (sentiment) {
+                  await supabase
+                    .from('mentions')
+                    .update({ sentiment })
+                    .eq('id', insertedMention.id)
+                }
+              }
+            } catch {
+              // Sentiment is best-effort
+            }
+          }
         }
       }
 

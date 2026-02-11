@@ -41,6 +41,18 @@ const BLOCKED_PATTERNS = [
   /eminutes\.com/,
   /blob\.core\.windows\.net/,
 
+  // Education
+  /\.edu$/,
+  /\.edu\//,
+
+  // CDN / PDF hosting (not articles)
+  /cdn\d*\./,
+  /\.pdf$/,
+
+  // School boards / associations (policy orgs, not news)
+  /fsba\.org/,
+  /schoolboard/,
+
   // Generic non-news
   /wikipedia\.org/,
   /amazon\.com/,
