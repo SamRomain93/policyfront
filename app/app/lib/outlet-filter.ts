@@ -37,10 +37,7 @@ const BLOCKED_PATTERNS = [
   /msba\.org/,
   /barass/,
 
-  // Advocacy/lobbying orgs (not news outlets)
-  /conservationleague/,
-  /collegeaccess/,
-  /schoolboards/,
+  // Note: advocacy .org sites are ALLOWED - they show who's engaged on issues
 
   // Meeting minutes / internal docs
   /eminutes\.com/,
