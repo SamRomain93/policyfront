@@ -184,6 +184,18 @@ export async function POST(request: NextRequest) {
       }])
     }
 
+    // Write alerts to alert_log
+    for (const alert of alerts) {
+      if (alert.user_id) {
+        await supabase.from('alert_log').insert([{
+          user_id: alert.user_id,
+          type: 'bill_status',
+          title: `${alert.bill}: ${alert.status}`,
+          body: alert.action,
+        }])
+      }
+    }
+
     // Send email alerts for status changes via SendGrid
     if (alerts.length > 0 && process.env.SENDGRID_API_KEY) {
       const userIds = [...new Set(alerts.filter(a => a.user_id).map(a => a.user_id!))]

@@ -2,6 +2,7 @@ import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
 import { extractJournalist } from '@/app/lib/journalist-extract'
 
+// Simple title similarity function using Jaccard index
 // Core monitoring logic shared between GET (Vercel cron) and POST (manual)
 async function runMonitor(baseUrl: string) {
   const supabase = getSupabase()
@@ -188,6 +189,8 @@ async function runMonitor(baseUrl: string) {
           continue
         }
 
+        const publishedAt = item.metadata?.published_date ? item.metadata.published_date : new Date().toISOString();
+
         const { data: insertedMention, error: insertError } = await supabase
           .from('mentions')
           .insert([{
@@ -198,6 +201,7 @@ async function runMonitor(baseUrl: string) {
             excerpt: item.metadata?.description || fullContent?.substring(0, 300) || '',
             outlet,
             discovered_at: new Date().toISOString(),
+            published_at: publishedAt,
             source_type: 'rss',
           }])
           .select('id')
@@ -209,6 +213,54 @@ async function runMonitor(baseUrl: string) {
           }
         } else {
           newMentions++
+
+          // Coverage attribution: check if this is the first mention for this story cluster
+          if (insertedMention?.id) {
+            try {
+              const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+              const mentionTitle = (item.title || '').toLowerCase()
+
+              // Find existing mentions for same topic in the last 48h with similar titles
+              const { data: recentMentions } = await supabase
+                .from('mentions')
+                .select('id, title, story_cluster, discovered_at')
+                .eq('topic_id', topic.id)
+                .gte('discovered_at', fortyEightHoursAgo)
+                .neq('id', insertedMention.id)
+                .order('discovered_at', { ascending: true })
+
+              // Simple title similarity: check if >50% of words overlap
+              const titleWords = new Set(mentionTitle.split(/\s+/).filter((w: string) => w.length > 3))
+              let matchedCluster: string | null = null
+
+              for (const existing of (recentMentions || [])) {
+                const existingWords = new Set((existing.title || '').toLowerCase().split(/\s+/).filter((w: string) => w.length > 3))
+                const overlap = [...titleWords].filter(w => existingWords.has(w)).length
+                const similarity = titleWords.size > 0 ? overlap / Math.max(titleWords.size, existingWords.size) : 0
+
+                if (similarity > 0.4) {
+                  matchedCluster = existing.story_cluster || existing.id
+                  break
+                }
+              }
+
+              if (matchedCluster) {
+                // Part of an existing story cluster
+                await supabase
+                  .from('mentions')
+                  .update({ story_cluster: matchedCluster, first_seen_for_story: false })
+                  .eq('id', insertedMention.id)
+              } else {
+                // First to report this story
+                await supabase
+                  .from('mentions')
+                  .update({ story_cluster: insertedMention.id, first_seen_for_story: true })
+                  .eq('id', insertedMention.id)
+              }
+            } catch {
+              // Attribution is best-effort
+            }
+          }
 
           // Extract journalist from article content
           if (rawHtml || fullContent) {
@@ -233,6 +285,8 @@ async function runMonitor(baseUrl: string) {
               // Journalist extraction is best-effort, don't fail the monitor
             }
           }
+
+          // Coverage attribution handled above
         }
       }
 

@@ -18,6 +18,7 @@ type Mention = {
   discovered_at: string
   topic_id: string
   topic_name: string | null
+  first_seen_for_story?: boolean
 }
 
 function timeAgo(date: string) {
@@ -258,9 +259,19 @@ export default function MentionsPage() {
                     </p>
                   )}
                   <div className="flex items-center gap-3 flex-wrap">
+                    {mention.first_seen_for_story && (
+                      <span className="text-[11px] font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded">
+                        FIRST
+                      </span>
+                    )}
                     {mention.topic_name && (
                       <span className="text-[11px] font-medium text-accent bg-accent/5 px-2 py-0.5 rounded">
                         {mention.topic_name}
+                      </span>
+                    )}
+                    {mention.first_seen_for_story && (
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                        FIRST
                       </span>
                     )}
                     {mention.outlet && (
