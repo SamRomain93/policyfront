@@ -1,8 +1,21 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../components/AuthGuard'
+
+type MediaList = {
+  id: string
+  name: string
+  member_count: number
+}
+
+type QuickAddToast = {
+  id: number
+  message: string
+}
+
+let toastCounter = 0
 
 type Journalist = {
   id: string
@@ -83,6 +96,16 @@ export default function JournalistsPage() {
   const [globalStats, setGlobalStats] = useState({ journalists: 0, outlets: 0, withContact: 0 })
   const [saving, setSaving] = useState(false)
 
+  // Media lists state (for quick-add)
+  const [mediaLists, setMediaLists] = useState<MediaList[]>([])
+  const [quickAddOpen, setQuickAddOpen] = useState<string | null>(null)
+  const [quickAddLoading, setQuickAddLoading] = useState<string | null>(null)
+  const [quickToasts, setQuickToasts] = useState<QuickAddToast[]>([])
+  const [showQuickCreate, setShowQuickCreate] = useState(false)
+  const [quickNewName, setQuickNewName] = useState('')
+  const [quickCreateFor, setQuickCreateFor] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
   // Add form state
   const [addName, setAddName] = useState('')
   const [addOutlet, setAddOutlet] = useState('')
@@ -130,6 +153,86 @@ export default function JournalistsPage() {
     const timer = setTimeout(() => fetchJournalists(), search ? 300 : 0)
     return () => clearTimeout(timer)
   }, [fetchJournalists, search])
+
+  // Fetch media lists for quick-add
+  const fetchMediaLists = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      const res = await fetch(`/api/media-lists?user_id=${user.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setMediaLists(data.lists || [])
+      }
+    } catch { /* ignore */ }
+  }, [user?.id])
+
+  useEffect(() => {
+    fetchMediaLists()
+  }, [fetchMediaLists])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setQuickAddOpen(null)
+        setShowQuickCreate(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const showQuickToast = (message: string) => {
+    const tid = ++toastCounter
+    setQuickToasts(prev => [...prev, { id: tid, message }])
+    setTimeout(() => {
+      setQuickToasts(prev => prev.filter(t => t.id !== tid))
+    }, 3000)
+  }
+
+  const handleQuickAdd = async (journalistId: string, listId: string, listName: string) => {
+    setQuickAddLoading(journalistId)
+    try {
+      const res = await fetch(`/api/media-lists/${listId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ journalist_ids: [journalistId] }),
+      })
+      if (res.ok) {
+        showQuickToast(`Added to ${listName}`)
+        fetchMediaLists()
+      }
+    } catch { /* ignore */ }
+    setQuickAddLoading(null)
+    setQuickAddOpen(null)
+  }
+
+  const handleQuickCreateList = async (journalistId: string) => {
+    if (!quickNewName.trim() || !user?.id) return
+    setQuickAddLoading(journalistId)
+    try {
+      const res = await fetch('/api/media-lists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, name: quickNewName.trim() }),
+      })
+      if (res.ok) {
+        const newList = await res.json()
+        // Add the journalist to the new list
+        await fetch(`/api/media-lists/${newList.id}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ journalist_ids: [journalistId] }),
+        })
+        showQuickToast(`Added to ${quickNewName.trim()}`)
+        setQuickNewName('')
+        setShowQuickCreate(false)
+        fetchMediaLists()
+      }
+    } catch { /* ignore */ }
+    setQuickAddLoading(null)
+    setQuickAddOpen(null)
+  }
 
   // Get unique beats for filter
   const allBeats = useMemo(() => {
@@ -432,13 +535,9 @@ export default function JournalistsPage() {
             const rel = relationshipBadge(relScore)
             const hasContact = j.email || j.twitter || j.phone || j.linkedin
             return (
-              <Link
-                key={j.id}
-                href={`/dashboard/journalists/${j.id}`}
-                className="glass-card p-5 block hover:bg-cream-100/50 transition group"
-              >
+              <div key={j.id} className="glass-card p-5 hover:bg-cream-100/50 transition group relative">
                 <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0">
+                  <Link href={`/dashboard/journalists/${j.id}`} className="flex items-center gap-4 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-full bg-cream-200 flex items-center justify-center shrink-0">
                       <span className="text-sm font-semibold text-muted">
                         {j.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -467,8 +566,8 @@ export default function JournalistsPage() {
                         )}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-6 shrink-0">
+                  </Link>
+                  <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right hidden sm:block">
                       <div className="flex items-center gap-1.5 justify-end">
                         <div className={`w-2 h-2 rounded-full ${sentimentDot(j.avg_sentiment)}`} />
@@ -479,15 +578,99 @@ export default function JournalistsPage() {
                     <div className="text-xs text-light-muted hidden sm:block">
                       {timeAgo(j.last_article_date)}
                     </div>
-                    <svg
-                      className="w-4 h-4 text-light-muted group-hover:text-accent transition"
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
+                    {/* Quick add to list */}
+                    <div className="relative" ref={quickAddOpen === j.id ? dropdownRef : undefined}>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setQuickAddOpen(quickAddOpen === j.id ? null : j.id)
+                          setShowQuickCreate(false)
+                          setQuickCreateFor(null)
+                        }}
+                        className="text-light-muted hover:text-accent transition p-1"
+                        title="Add to list"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                      </button>
+                      {quickAddOpen === j.id && (
+                        <div className="absolute right-0 top-8 z-30 bg-white border border-border rounded-lg shadow-lg py-1 w-52" onClick={(e) => e.stopPropagation()}>
+                          <div className="px-3 py-1.5 text-[10px] font-semibold text-muted uppercase tracking-wide">Add to list</div>
+                          {mediaLists.length === 0 && !showQuickCreate && (
+                            <div className="px-3 py-2 text-xs text-muted">No lists yet</div>
+                          )}
+                          {mediaLists.map(ml => (
+                            <button
+                              key={ml.id}
+                              onClick={() => handleQuickAdd(j.id, ml.id, ml.name)}
+                              disabled={quickAddLoading === j.id}
+                              className="w-full text-left px-3 py-1.5 text-sm hover:bg-cream-100 transition truncate disabled:opacity-50"
+                            >
+                              {ml.name}
+                              <span className="text-[10px] text-light-muted ml-1">({ml.member_count})</span>
+                            </button>
+                          ))}
+                          <div className="border-t border-border mt-1 pt-1">
+                            {showQuickCreate && quickCreateFor === j.id ? (
+                              <div className="px-3 py-1.5">
+                                <input
+                                  type="text"
+                                  value={quickNewName}
+                                  onChange={(e) => setQuickNewName(e.target.value)}
+                                  placeholder="List name"
+                                  autoFocus
+                                  className="w-full px-2 py-1 rounded border border-border text-xs focus:outline-none focus:border-accent/40"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      handleQuickCreateList(j.id)
+                                    }
+                                  }}
+                                />
+                                <div className="flex gap-1 mt-1">
+                                  <button
+                                    onClick={() => handleQuickCreateList(j.id)}
+                                    disabled={!quickNewName.trim() || quickAddLoading === j.id}
+                                    className="text-[10px] font-medium text-emerald-700 hover:text-emerald-800 disabled:opacity-50"
+                                  >
+                                    Create
+                                  </button>
+                                  <button
+                                    onClick={() => { setShowQuickCreate(false); setQuickNewName('') }}
+                                    className="text-[10px] text-muted hover:text-near-black ml-2"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setShowQuickCreate(true); setQuickCreateFor(j.id) }}
+                                className="w-full text-left px-3 py-1.5 text-sm text-accent hover:bg-cream-100 transition flex items-center gap-1.5"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                New List
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <Link href={`/dashboard/journalists/${j.id}`}>
+                      <svg
+                        className="w-4 h-4 text-light-muted group-hover:text-accent transition"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                      </svg>
+                    </Link>
                   </div>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>
@@ -533,6 +716,18 @@ export default function JournalistsPage() {
         )}
       </>
       )}
+
+      {/* Quick-add toast notifications */}
+      <div className="fixed bottom-6 right-6 z-50 space-y-2">
+        {quickToasts.map(t => (
+          <div
+            key={t.id}
+            className="bg-near-black text-cream-50 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium"
+          >
+            {t.message}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
