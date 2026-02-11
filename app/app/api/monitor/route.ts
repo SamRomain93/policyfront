@@ -196,7 +196,30 @@ async function runMonitor(baseUrl: string) {
           continue
         }
 
-        const publishedAt = item.metadata?.published_date ? item.metadata.published_date : new Date().toISOString();
+        // Extract publish date: try Firecrawl metadata, then HTML meta tags, then fallback to now
+        let publishedAt = item.metadata?.published_date || item.metadata?.publishedDate || ''
+        if (!publishedAt && rawHtml) {
+          // Try common meta tags for publish date
+          const datePatterns = [
+            /property="article:published_time"\s+content="([^"]+)"/,
+            /name="pubdate"\s+content="([^"]+)"/,
+            /name="date"\s+content="([^"]+)"/,
+            /property="og:published_time"\s+content="([^"]+)"/,
+            /datePublished['"]\s*:\s*['"]([^'"]+)['"]/,
+            /"datePublished"\s*:\s*"([^"]+)"/,
+          ]
+          for (const pattern of datePatterns) {
+            const match = rawHtml.match(pattern)
+            if (match) {
+              const parsed = new Date(match[1])
+              if (!isNaN(parsed.getTime())) {
+                publishedAt = parsed.toISOString()
+                break
+              }
+            }
+          }
+        }
+        if (!publishedAt) publishedAt = new Date().toISOString()
 
         const { data: insertedMention, error: insertError } = await supabase
           .from('mentions')
