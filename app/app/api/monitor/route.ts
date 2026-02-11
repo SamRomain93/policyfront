@@ -1,6 +1,7 @@
 import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
 import { extractJournalist } from '@/app/lib/journalist-extract'
+import { isNewsOutlet } from '@/app/lib/outlet-filter'
 
 // Simple title similarity function using Jaccard index
 // Core monitoring logic shared between GET (Vercel cron) and POST (manual)
@@ -126,6 +127,12 @@ async function runMonitor(baseUrl: string) {
 
         let outlet = ''
         try { outlet = new URL(item.url).hostname.replace('www.', '') } catch { /* skip */ }
+
+        // Skip non-news domains (government sites, bill trackers, social media)
+        if (!isNewsOutlet(outlet)) {
+          skipped++
+          continue
+        }
 
         // Scrape full content only for NEW articles (worth the cost for sentiment + journalist extraction)
         let fullContent = ''

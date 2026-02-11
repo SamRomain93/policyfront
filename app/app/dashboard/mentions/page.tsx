@@ -3,10 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../components/AuthGuard'
 
-type Topic = {
-  id: string
-  name: string
-}
+type Topic = { id: string; name: string }
 
 type Mention = {
   id: string
@@ -19,56 +16,103 @@ type Mention = {
   topic_id: string
   topic_name: string | null
   first_seen_for_story?: boolean
+  story_cluster?: string | null
+}
+
+type StoryGroup = {
+  key: string
+  primary: Mention
+  related: Mention[]
 }
 
 function timeAgo(date: string) {
   const now = new Date()
   const then = new Date(date)
   const diff = Math.floor((now.getTime() - then.getTime()) / 1000)
-
   if (diff < 60) return 'just now'
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
-}
-
-function sentimentColor(sentiment: string | null) {
-  switch (sentiment) {
-    case 'positive': return 'bg-emerald-50 text-emerald-700'
-    case 'negative': return 'bg-red-50 text-red-700'
-    case 'neutral': return 'bg-cream-200 text-muted'
-    default: return 'bg-cream-100 text-light-muted'
-  }
+  const days = Math.floor(diff / 86400)
+  if (days === 1) return 'yesterday'
+  if (days < 7) return `${days}d ago`
+  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function sentimentDot(sentiment: string | null) {
   switch (sentiment) {
     case 'positive': return 'bg-emerald-500'
     case 'negative': return 'bg-red-500'
-    case 'neutral': return 'bg-gray-400'
-    default: return 'bg-gray-300'
+    case 'neutral': return 'bg-gray-300'
+    default: return 'bg-gray-200'
+  }
+}
+
+function sentimentBadge(sentiment: string | null) {
+  switch (sentiment) {
+    case 'positive': return { text: 'Positive', cls: 'bg-emerald-50 text-emerald-700' }
+    case 'negative': return { text: 'Negative', cls: 'bg-red-50 text-red-700' }
+    case 'neutral': return { text: 'Neutral', cls: 'bg-gray-50 text-gray-500' }
+    default: return { text: 'Unscored', cls: 'bg-gray-50 text-gray-400' }
   }
 }
 
 const DATE_PRESETS = [
-  { label: 'All Time', value: 'all' },
+  { label: 'All', value: 'all' },
   { label: 'Today', value: 'today' },
-  { label: 'This Week', value: 'week' },
-  { label: 'This Month', value: 'month' },
+  { label: 'Week', value: 'week' },
+  { label: 'Month', value: 'month' },
 ]
+
+function groupByStory(mentions: Mention[]): StoryGroup[] {
+  const clusters: Record<string, Mention[]> = {}
+  const ungrouped: Mention[] = []
+
+  for (const m of mentions) {
+    if (m.story_cluster) {
+      if (!clusters[m.story_cluster]) clusters[m.story_cluster] = []
+      clusters[m.story_cluster].push(m)
+    } else {
+      ungrouped.push(m)
+    }
+  }
+
+  const groups: StoryGroup[] = []
+
+  // Clustered stories: primary = first_seen or earliest
+  for (const [key, items] of Object.entries(clusters)) {
+    const sorted = items.sort((a, b) => new Date(a.discovered_at).getTime() - new Date(b.discovered_at).getTime())
+    const primary = sorted.find(m => m.first_seen_for_story) || sorted[0]
+    const related = sorted.filter(m => m.id !== primary.id)
+    groups.push({ key, primary, related })
+  }
+
+  // Ungrouped mentions as individual stories
+  for (const m of ungrouped) {
+    groups.push({ key: m.id, primary: m, related: [] })
+  }
+
+  // Sort: negative first, then by date
+  groups.sort((a, b) => {
+    const aScore = a.primary.sentiment === 'negative' ? 0 : a.primary.sentiment === 'positive' ? 2 : 1
+    const bScore = b.primary.sentiment === 'negative' ? 0 : b.primary.sentiment === 'positive' ? 2 : 1
+    if (aScore !== bScore) return aScore - bScore
+    return new Date(b.primary.discovered_at).getTime() - new Date(a.primary.discovered_at).getTime()
+  })
+
+  return groups
+}
 
 export default function MentionsPage() {
   const { user } = useAuth()
   const [mentions, setMentions] = useState<Mention[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedStory, setExpandedStory] = useState<string | null>(null)
 
-  // Filters
   const [topicFilter, setTopicFilter] = useState('all')
   const [sentimentFilter, setSentimentFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all')
 
-  // Fetch topics for filter dropdown
   useEffect(() => {
     if (!user) return
     fetch(`/api/topics?user_id=${user.id}`)
@@ -82,29 +126,17 @@ export default function MentionsPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams({ user_id: user.id })
-
       if (topicFilter !== 'all') params.set('topic_id', topicFilter)
       if (sentimentFilter !== 'all') params.set('sentiment', sentimentFilter)
-
       if (dateFilter === 'today') {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        params.set('since', today.toISOString())
+        const d = new Date(); d.setHours(0, 0, 0, 0); params.set('since', d.toISOString())
       } else if (dateFilter === 'week') {
-        const week = new Date()
-        week.setDate(week.getDate() - 7)
-        params.set('since', week.toISOString())
+        const d = new Date(); d.setDate(d.getDate() - 7); params.set('since', d.toISOString())
       } else if (dateFilter === 'month') {
-        const month = new Date()
-        month.setMonth(month.getMonth() - 1)
-        params.set('since', month.toISOString())
+        const d = new Date(); d.setMonth(d.getMonth() - 1); params.set('since', d.toISOString())
       }
-
       const res = await fetch(`/api/mentions?${params}`)
-      if (res.ok) {
-        const data = await res.json()
-        setMentions(data)
-      }
+      if (res.ok) setMentions(await res.json())
     } catch (err) {
       console.error('Failed to fetch mentions:', err)
     } finally {
@@ -112,69 +144,43 @@ export default function MentionsPage() {
     }
   }, [user, topicFilter, sentimentFilter, dateFilter])
 
-  useEffect(() => {
-    fetchMentions()
-  }, [fetchMentions])
+  useEffect(() => { fetchMentions() }, [fetchMentions])
 
-  // Stats
-  const totalCount = mentions.length
-  const positiveCount = mentions.filter(m => m.sentiment === 'positive').length
-  const negativeCount = mentions.filter(m => m.sentiment === 'negative').length
-  const neutralCount = mentions.filter(m => m.sentiment === 'neutral').length
+  const stories = groupByStory(mentions)
+  const negCount = mentions.filter(m => m.sentiment === 'negative').length
+  const posCount = mentions.filter(m => m.sentiment === 'positive').length
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">
-          Mentions
-        </h1>
-        <p className="text-sm text-muted">Media coverage discovered across your topics.</p>
+      <div className="mb-6">
+        <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">Mentions</h1>
+        <p className="text-sm text-muted">
+          {mentions.length} articles across {stories.length} stories
+          {negCount > 0 && <span className="text-red-600 ml-2">{negCount} negative</span>}
+          {posCount > 0 && <span className="text-emerald-600 ml-2">{posCount} positive</span>}
+        </p>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
-        <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{totalCount}</div>
-          <div className="text-xs text-muted uppercase tracking-wide mt-1">Total</div>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold text-emerald-600">{positiveCount}</div>
-          <div className="text-xs text-muted uppercase tracking-wide mt-1">Positive</div>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold text-red-600">{negativeCount}</div>
-          <div className="text-xs text-muted uppercase tracking-wide mt-1">Negative</div>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold text-gray-500">{neutralCount}</div>
-          <div className="text-xs text-muted uppercase tracking-wide mt-1">Neutral</div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Topic filter */}
+      {/* Compact filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <select
           value={topicFilter}
           onChange={(e) => setTopicFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-border bg-white text-sm text-near-black focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 transition"
+          className="px-3 py-1.5 rounded-lg border border-border bg-white text-xs text-near-black focus:outline-none focus:border-accent/40 transition"
         >
           <option value="all">All Topics</option>
-          {topics.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
+          {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
 
-        {/* Sentiment filter */}
-        <div className="flex items-center gap-1 bg-white border border-border rounded-lg p-0.5">
-          {['all', 'positive', 'negative', 'neutral'].map(s => (
+        <div className="flex items-center gap-0.5 bg-white border border-border rounded-lg p-0.5">
+          {['all', 'negative', 'positive', 'neutral'].map(s => (
             <button
               key={s}
               onClick={() => setSentimentFilter(s)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
                 sentimentFilter === s
-                  ? s === 'positive' ? 'bg-emerald-50 text-emerald-700'
-                    : s === 'negative' ? 'bg-red-50 text-red-700'
+                  ? s === 'negative' ? 'bg-red-50 text-red-700'
+                    : s === 'positive' ? 'bg-emerald-50 text-emerald-700'
                     : s === 'neutral' ? 'bg-gray-100 text-gray-600'
                     : 'bg-near-black text-cream-50'
                   : 'text-muted hover:text-near-black'
@@ -185,16 +191,13 @@ export default function MentionsPage() {
           ))}
         </div>
 
-        {/* Date filter */}
-        <div className="flex items-center gap-1 bg-white border border-border rounded-lg p-0.5">
+        <div className="flex items-center gap-0.5 bg-white border border-border rounded-lg p-0.5">
           {DATE_PRESETS.map(d => (
             <button
               key={d.value}
               onClick={() => setDateFilter(d.value)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                dateFilter === d.value
-                  ? 'bg-near-black text-cream-50'
-                  : 'text-muted hover:text-near-black'
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
+                dateFilter === d.value ? 'bg-near-black text-cream-50' : 'text-muted hover:text-near-black'
               }`}
             >
               {d.label}
@@ -202,98 +205,128 @@ export default function MentionsPage() {
           ))}
         </div>
 
-        {/* Active filter indicator */}
         {(topicFilter !== 'all' || sentimentFilter !== 'all' || dateFilter !== 'all') && (
           <button
             onClick={() => { setTopicFilter('all'); setSentimentFilter('all'); setDateFilter('all') }}
-            className="text-xs text-accent hover:underline"
+            className="text-[11px] text-accent hover:underline"
           >
-            Clear filters
+            Clear
           </button>
         )}
       </div>
 
-      {/* Mentions list */}
+      {/* Stories */}
       {loading ? (
         <div className="glass-card p-12 text-center">
           <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-muted">Loading mentions...</p>
+          <p className="text-sm text-muted">Loading...</p>
         </div>
-      ) : mentions.length === 0 ? (
+      ) : stories.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <svg className="w-12 h-12 text-light-muted mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z" />
-          </svg>
-          <p className="text-muted mb-2">
+          <div className="w-12 h-12 rounded-full bg-cream-200 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z" />
+            </svg>
+          </div>
+          <p className="text-muted mb-1">
             {topicFilter !== 'all' || sentimentFilter !== 'all' || dateFilter !== 'all'
               ? 'No mentions match your filters'
               : 'No mentions yet'}
           </p>
-          <p className="text-sm text-light-muted">
+          <p className="text-xs text-light-muted">
             {topicFilter !== 'all' || sentimentFilter !== 'all' || dateFilter !== 'all'
-              ? 'Try adjusting your filters to see more results.'
-              : 'Mentions will appear here once monitoring runs on your active topics.'}
+              ? 'Try adjusting your filters.'
+              : 'Monitoring runs every 4 hours. Check back soon.'}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {mentions.map((mention) => (
-            <a
-              key={mention.id}
-              href={mention.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass-card p-5 block hover:bg-white/70 transition-all group"
-            >
-              <div className="flex items-start gap-4">
-                {/* Sentiment dot */}
-                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${sentimentDot(mention.sentiment)}`} />
+          {stories.map(story => {
+            const m = story.primary
+            const sentiment = sentimentBadge(m.sentiment)
+            const hasRelated = story.related.length > 0
+            const isExpanded = expandedStory === story.key
 
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-[15px] mb-1 group-hover:text-accent transition line-clamp-1">
-                    {mention.title || mention.url}
-                  </h3>
-                  {mention.excerpt && (
-                    <p className="text-sm text-muted leading-relaxed line-clamp-2 mb-3">
-                      {mention.excerpt}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {mention.first_seen_for_story && (
-                      <span className="text-[11px] font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded">
-                        FIRST
-                      </span>
-                    )}
-                    {mention.topic_name && (
-                      <span className="text-[11px] font-medium text-accent bg-accent/5 px-2 py-0.5 rounded">
-                        {mention.topic_name}
-                      </span>
-                    )}
-                    {mention.first_seen_for_story && (
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                        FIRST
-                      </span>
-                    )}
-                    {mention.outlet && (
-                      <span className="text-[11px] font-medium text-muted uppercase tracking-wide">
-                        {mention.outlet}
-                      </span>
-                    )}
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded ${sentimentColor(mention.sentiment)}`}>
-                      {mention.sentiment || 'unscored'}
-                    </span>
-                    <span className="text-[11px] text-light-muted">
-                      {timeAgo(mention.discovered_at)}
-                    </span>
+            return (
+              <div key={story.key} className="glass-card overflow-hidden">
+                {/* Primary article */}
+                <a
+                  href={m.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 hover:bg-cream-100/50 transition group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${sentimentDot(m.sentiment)}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {m.first_seen_for_story && (
+                          <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded uppercase tracking-wide">First</span>
+                        )}
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${sentiment.cls}`}>{sentiment.text}</span>
+                        {m.topic_name && (
+                          <span className="text-[10px] text-accent">{m.topic_name}</span>
+                        )}
+                      </div>
+                      <h3 className="font-medium text-sm leading-snug group-hover:text-accent transition line-clamp-2">
+                        {m.title || m.url}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {m.outlet && (
+                          <span className="text-[11px] text-muted font-medium">{m.outlet}</span>
+                        )}
+                        <span className="text-[11px] text-light-muted">{timeAgo(m.discovered_at)}</span>
+                        {hasRelated && (
+                          <span className="text-[11px] text-light-muted">+{story.related.length} more</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </a>
 
-                <svg className="w-4 h-4 text-light-muted group-hover:text-accent transition flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                </svg>
+                {/* Related articles toggle */}
+                {hasRelated && (
+                  <>
+                    <button
+                      onClick={() => setExpandedStory(isExpanded ? null : story.key)}
+                      className="w-full px-4 py-2 text-left border-t border-border/50 hover:bg-cream-100/30 transition flex items-center gap-2"
+                    >
+                      <svg
+                        className={`w-3 h-3 text-light-muted transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <span className="text-[11px] text-muted">
+                        {story.related.length} related article{story.related.length > 1 ? 's' : ''} from other outlets
+                      </span>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-border/50 bg-cream-100/20">
+                        {story.related.map(r => (
+                          <a
+                            key={r.id}
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block px-4 py-3 pl-8 hover:bg-cream-100/50 transition border-b border-border/30 last:border-0"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className={`w-1 h-1 rounded-full shrink-0 ${sentimentDot(r.sentiment)}`} />
+                              <span className="text-xs font-medium truncate flex-1">{r.title || r.url}</span>
+                              <span className="text-[10px] text-muted shrink-0">{r.outlet}</span>
+                              <span className="text-[10px] text-light-muted shrink-0">{timeAgo(r.discovered_at)}</span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            </a>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
