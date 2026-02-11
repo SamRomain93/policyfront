@@ -2,8 +2,8 @@ import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
 import { extractJournalist } from '@/app/lib/journalist-extract'
 import { isNewsOutlet } from '@/app/lib/outlet-filter'
+import { searchArticles, sentimentLabel, extractAuthorInfo } from '@/app/lib/newsapi-ai'
 
-// Simple title similarity function using Jaccard index
 // Core monitoring logic shared between GET (Vercel cron) and POST (manual)
 async function runMonitor(baseUrl: string) {
   const supabase = getSupabase()
@@ -90,7 +90,110 @@ async function runMonitor(baseUrl: string) {
         .eq('topic_id', topic.id)
 
       const knownUrls = new Set((existingMentions || []).map((m: { url: string }) => m.url))
+      let newMentions = 0
+      let skipped = 0
 
+      // --- NewsAPI.ai: Primary discovery source ---
+      const newsApiKey = process.env.NEWSAPI_AI_KEY
+      if (newsApiKey) {
+        try {
+          // Build a simpler keyword query for NewsAPI.ai (no bill ID expansion needed, just natural language)
+          const newsQuery = keywords.map(k => k.includes(' ') ? `"${k}"` : k).join(' OR ')
+          const fullQuery = stateName ? `${newsQuery} ${stateName}` : newsQuery
+
+          const newsResult = await searchArticles({
+            keyword: fullQuery,
+            count: 20,
+            sortBy: 'date',
+            apiKey: newsApiKey,
+          })
+
+          for (const article of newsResult.articles) {
+            if (!article.url || knownUrls.has(article.url)) continue
+
+            let outlet = ''
+            try { outlet = new URL(article.url).hostname.replace('www.', '') } catch { continue }
+            if (!isNewsOutlet(outlet)) continue
+
+            // NewsAPI.ai already provides structured data - no extra scrape needed
+            const sentiment = sentimentLabel(article.sentiment)
+            const authorInfo = extractAuthorInfo(article.authors)
+
+            const { data: insertedMention } = await supabase
+              .from('mentions')
+              .insert([{
+                topic_id: topic.id,
+                url: article.url,
+                title: article.title || '',
+                outlet,
+                excerpt: (article.body || '').substring(0, 500),
+                sentiment,
+                published_at: article.dateTimePub || new Date().toISOString(),
+                discovered_at: new Date().toISOString(),
+              }])
+              .select('id')
+              .single()
+
+            if (insertedMention?.id) {
+              knownUrls.add(article.url)
+              newMentions++
+
+              // Story clustering via NewsAPI.ai eventUri
+              if (article.eventUri) {
+                // Check if we have other mentions with same eventUri
+                const { data: relatedMentions } = await supabase
+                  .from('mentions')
+                  .select('id, story_cluster')
+                  .eq('topic_id', topic.id)
+                  .neq('id', insertedMention.id)
+                  .limit(50)
+
+                // Use eventUri as cluster key for dedup
+                let matchedCluster: string | null = null
+                if (article.isDuplicate) {
+                  // NewsAPI.ai says it's a dupe - find the original
+                  matchedCluster = relatedMentions?.find(m => m.story_cluster)?.story_cluster || null
+                }
+
+                await supabase
+                  .from('mentions')
+                  .update({
+                    story_cluster: matchedCluster || insertedMention.id,
+                    first_seen_for_story: !matchedCluster,
+                  })
+                  .eq('id', insertedMention.id)
+              } else {
+                await supabase
+                  .from('mentions')
+                  .update({ story_cluster: insertedMention.id, first_seen_for_story: true })
+                  .eq('id', insertedMention.id)
+              }
+
+              // Save journalist if author found
+              if (authorInfo.name) {
+                try {
+                  await fetch(`${baseUrl}/api/journalists`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name: authorInfo.name,
+                      outlet,
+                      email: authorInfo.email,
+                      beat: topic.name,
+                      mention_id: insertedMention.id,
+                    }),
+                  })
+                } catch { /* best effort */ }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('NewsAPI.ai search failed for', topic.name, err)
+          // Fall through to Firecrawl
+        }
+      }
+
+      // --- Firecrawl: Secondary/fallback discovery ---
       const searchRes = await fetch('https://api.firecrawl.dev/v1/search', {
         method: 'POST',
         headers: {
@@ -112,9 +215,6 @@ async function runMonitor(baseUrl: string) {
 
       const searchData = await searchRes.json()
       const items = searchData.data || []
-
-      let newMentions = 0
-      let skipped = 0
 
       for (const item of items) {
         if (!item.url) continue
