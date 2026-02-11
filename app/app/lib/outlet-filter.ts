@@ -28,10 +28,8 @@ const BLOCKED_PATTERNS = [
   /instagram\.com/,
   /tiktok\.com/,
   /linkedin\.com/,
-  /reddit\.com/,
   /youtube\.com/,
   /spotify\.com/,
-  /substack\.com/,  // personal newsletters, not news outlets
 
   // Law firms / bar associations
   /law\.com$/,
@@ -56,8 +54,12 @@ export function isNewsOutlet(domain: string): boolean {
 }
 
 // Classify outlet type for display
-export function outletType(domain: string): 'news' | 'trade' | 'advocacy' | 'other' {
+export function outletType(domain: string): 'news' | 'trade' | 'advocacy' | 'community' | 'other' {
   const lower = domain.toLowerCase()
+
+  // Community/grassroots (valuable for sentiment + identifying passionate writers)
+  if (/reddit\.com/.test(lower)) return 'community'
+  if (/substack\.com/.test(lower)) return 'community'
 
   // Major news outlets
   if (/politico|reuters|bloomberg|nytimes|washingtonpost|wsj|apnews|cnn|fox|abc|nbc|cbs|npr|pbs/.test(lower)) {
