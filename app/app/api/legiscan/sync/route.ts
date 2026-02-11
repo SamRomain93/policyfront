@@ -82,9 +82,10 @@ export async function POST(request: NextRequest) {
       }
 
       for (const tracked of trackedBills) {
-        // Normalize the tracked bill number to match
+        // Normalize the tracked bill number to match, including HB->H, SB->S variations
         const normalized = tracked.billNumber.replace(/[\s-]+/g, '').toLowerCase()
-        const masterEntry = masterByNumber[normalized]
+        const normalizedNoB = normalized.replace(/^(h|s)b/, '$1')
+        const masterEntry = masterByNumber[normalized] || masterByNumber[normalizedNoB]
 
         if (!masterEntry) {
           // Bill not in current session master list, skip

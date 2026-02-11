@@ -222,6 +222,7 @@ export async function getMasterList(sessionIdOrState: string | number): Promise<
 }
 
 // Search by bill number in a state (convenience wrapper)
+// Handles variations: HB1145 vs H1145, SB0968 vs S0968, AB-1290, etc.
 export async function findBillByNumber(
   billNumber: string,
   state: string
@@ -232,12 +233,42 @@ export async function findBillByNumber(
     .replace(/([A-Za-z]+)(\d)/, '$1 $2')
     .trim()
 
-  const { results } = await searchBills(normalized, state, 2) // year=2 means current
-  if (results.length === 0) return null
+  // Generate search variations
+  // Some states use HB/SB, LegiScan might use H/S (e.g., FL: HB1145 -> H1145)
+  const variations: string[] = [normalized]
+  const match = normalized.match(/^([A-Za-z]+)\s*(\d+)$/)
+  if (match) {
+    const prefix = match[1].toUpperCase()
+    const num = match[2]
+    // Try without the "B" suffix: HB -> H, SB -> S
+    if (prefix.endsWith('B') && prefix.length > 1) {
+      variations.push(`${prefix.slice(0, -1)} ${num}`)
+      variations.push(`${prefix.slice(0, -1)}${num}`)
+    }
+    // Try with leading zeros stripped and added
+    variations.push(`${prefix} ${num.replace(/^0+/, '')}`)
+    variations.push(`${prefix}${num}`)
+    variations.push(`${prefix}0${num}`)
+  }
 
-  // Find exact match by bill number
-  const exact = results.find(r =>
-    r.bill_number.replace(/\s+/g, '').toLowerCase() === billNumber.replace(/[-\s]+/g, '').toLowerCase()
-  )
-  return exact || results[0]
+  // Try each variation
+  for (const variant of variations) {
+    const { results } = await searchBills(variant, state, 2)
+    if (results.length === 0) continue
+
+    // Normalize for comparison: strip all non-alphanumeric, lowercase
+    const inputNorm = billNumber.replace(/[-\s]+/g, '').toLowerCase()
+    const inputNormNoB = inputNorm.replace(/^(h|s)b/, '$1') // HB -> H, SB -> S
+
+    const exact = results.find(r => {
+      const rNorm = r.bill_number.replace(/[-\s]+/g, '').toLowerCase()
+      return rNorm === inputNorm || rNorm === inputNormNoB
+    })
+
+    if (exact) return exact
+    // If no exact match but we got results, return the first one from this variant
+    return results[0]
+  }
+
+  return null
 }
