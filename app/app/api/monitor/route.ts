@@ -173,7 +173,7 @@ async function runMonitor(baseUrl: string) {
                 'content-type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'claude-haiku-4-5-20250501',
+                model: 'claude-3-haiku-20240307',
                 max_tokens: 10,
                 messages: [{
                   role: 'user',
@@ -329,7 +329,7 @@ async function runMonitor(baseUrl: string) {
                   'content-type': 'application/json',
                 },
                 body: JSON.stringify({
-                  model: 'claude-haiku-4-5-20250501',
+                  model: 'claude-3-haiku-20240307',
                   max_tokens: 20,
                   messages: [{
                     role: 'user',
