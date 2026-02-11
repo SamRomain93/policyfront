@@ -42,7 +42,21 @@ export async function GET(req: NextRequest) {
         )
       `)
       .eq('referrer_id', userId)
-      .order('signed_up_at', { ascending: false })
+      .order('signed_up_at', { ascending: false }) as { 
+        data: Array<{
+          id: string
+          signed_up_at: string
+          converted_at: string | null
+          credited: boolean
+          referee: {
+            name: string
+            email: string
+            subscription_status: string | null
+            trial_ends_at: string | null
+          } | null
+        }> | null
+        error: any
+      }
 
     if (conversionsError) {
       throw conversionsError

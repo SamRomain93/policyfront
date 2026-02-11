@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function ReferralSignup() {
+function ReferralSignupForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const codeParam = searchParams.get('code')
@@ -272,5 +272,20 @@ export default function ReferralSignup() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ReferralSignup() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ReferralSignupForm />
+    </Suspense>
   )
 }
