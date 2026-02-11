@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../components/AuthGuard'
+import ScanStatusIndicator from '../components/ScanStatusIndicator'
 
 type Topic = { id: string; name: string }
 
@@ -154,12 +155,17 @@ export default function MentionsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">Mentions</h1>
-        <p className="text-sm text-muted">
-          {mentions.length} articles across {stories.length} stories
-          {negCount > 0 && <span className="text-red-600 ml-2">{negCount} negative</span>}
-          {posCount > 0 && <span className="text-emerald-600 ml-2">{posCount} positive</span>}
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">Mentions</h1>
+            <p className="text-sm text-muted">
+              {mentions.length} articles across {stories.length} stories
+              {negCount > 0 && <span className="text-red-600 ml-2">{negCount} negative</span>}
+              {posCount > 0 && <span className="text-emerald-600 ml-2">{posCount} positive</span>}
+            </p>
+          </div>
+          <ScanStatusIndicator variant="compact" />
+        </div>
       </div>
 
       {/* Compact filters */}

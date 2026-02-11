@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './components/AuthGuard'
+import ScanStatusIndicator from './components/ScanStatusIndicator'
 
 type Stats = {
   activeTopics: number
@@ -96,10 +97,15 @@ export default function DashboardPage() {
     <div>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted">Your policy intelligence at a glance.</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">
+              Dashboard
+            </h1>
+            <p className="text-sm text-muted">Your policy intelligence at a glance.</p>
+          </div>
+          <ScanStatusIndicator variant="compact" />
+        </div>
       </div>
 
       {/* Stats cards */}

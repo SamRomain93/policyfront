@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../components/AuthGuard'
+import ScanStatusIndicator from '../components/ScanStatusIndicator'
 
 type Topic = {
   id: string
@@ -120,15 +121,18 @@ export default function TopicsPage() {
           </h1>
           <p className="text-sm text-muted">Bills and policy areas you&apos;re monitoring.</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="bg-near-black text-cream-50 px-5 py-2.5 rounded-full text-sm font-medium hover:bg-near-black/85 transition flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Add Topic
-        </button>
+        <div className="flex items-center gap-4">
+          <ScanStatusIndicator variant="compact" />
+          <button
+            onClick={() => { resetForm(); setShowForm(true) }}
+            className="bg-near-black text-cream-50 px-5 py-2.5 rounded-full text-sm font-medium hover:bg-near-black/85 transition flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add Topic
+          </button>
+        </div>
       </div>
 
       {/* Add topic form */}
