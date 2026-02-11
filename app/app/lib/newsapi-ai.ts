@@ -83,7 +83,7 @@ export async function searchArticles(params: {
   const body: Record<string, unknown> = {
     keyword: params.keyword,
     lang: params.lang || 'eng',
-    articlesCount: params.count || 20,
+    articlesCount: params.count || 10,
     articlesSortBy: params.sortBy || 'date',
     includeArticleAuthors: true,
     includeArticleSocialScore: false,
@@ -93,10 +93,10 @@ export async function searchArticles(params: {
   if (params.dateStart) body.dateStart = params.dateStart
   if (params.dateEnd) body.dateEnd = params.dateEnd
 
-  // Only get articles from the last 30 days by default
+  // Only get articles since last scan (~4 hours) to save tokens
   if (!params.dateStart) {
     const d = new Date()
-    d.setDate(d.getDate() - 7)  // Last 7 days for freshness
+    d.setDate(d.getDate() - 1)  // Last 24 hours max
     body.dateStart = d.toISOString().split('T')[0]
   }
 
