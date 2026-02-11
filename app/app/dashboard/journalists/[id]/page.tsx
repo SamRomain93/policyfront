@@ -20,6 +20,7 @@ type Journalist = {
   last_article_date: string | null
   first_seen: string | null
   updated_at: string | null
+  notes: Array<{ text: string; source?: string | null }> | null
 }
 
 type CoverageArticle = {
@@ -483,6 +484,36 @@ export default function JournalistProfilePage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Intel section */}
+      {journalist.notes && Array.isArray(journalist.notes) && journalist.notes.length > 0 && (
+        <div className="glass-card p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-[family-name:var(--font-serif)] text-lg">Intel</h2>
+            <span className="text-[10px] text-light-muted uppercase tracking-wide">{journalist.notes.length} notes</span>
+          </div>
+          <div className="space-y-3">
+            {journalist.notes.map((note: { text: string; source?: string | null }, idx: number) => (
+              <div key={idx} className="flex items-start gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-accent/40 mt-2 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm">{note.text}</p>
+                  {note.source && (
+                    <a
+                      href={note.source}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-accent hover:underline"
+                    >
+                      Source ↗
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Two column layout */}

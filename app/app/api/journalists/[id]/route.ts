@@ -38,7 +38,7 @@ export async function PUT(
 
   try {
     const body = await request.json()
-    const allowed = ['name', 'outlet', 'email', 'phone', 'twitter', 'linkedin', 'website', 'beat']
+    const allowed = ['name', 'outlet', 'email', 'phone', 'twitter', 'linkedin', 'website', 'beat', 'notes']
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
     for (const key of allowed) {
