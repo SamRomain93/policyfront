@@ -60,11 +60,11 @@ function relationshipScore(j: Journalist): number {
   return score
 }
 
-function relationshipBadge(score: number): { label: string; color: string } {
-  if (score >= 20) return { label: 'Strong', color: 'bg-emerald-100 text-emerald-800' }
-  if (score >= 10) return { label: 'Active', color: 'bg-blue-100 text-blue-800' }
-  if (score >= 3) return { label: 'Developing', color: 'bg-amber-100 text-amber-800' }
-  return { label: 'New', color: 'bg-gray-100 text-gray-600' }
+function relationshipBadge(score: number): { label: string; color: string; tooltip: string } {
+  if (score >= 20) return { label: 'Strong', color: 'bg-emerald-100 text-emerald-800', tooltip: 'Frequent coverage of your topics with active engagement' }
+  if (score >= 10) return { label: 'Active', color: 'bg-blue-100 text-blue-800', tooltip: 'Regular coverage and some direct interactions' }
+  if (score >= 3) return { label: 'Developing', color: 'bg-amber-100 text-amber-800', tooltip: 'Some coverage tracked, early-stage relationship' }
+  return { label: 'New', color: 'bg-gray-100 text-gray-600', tooltip: 'Recently discovered, no interactions yet' }
 }
 
 export default function JournalistsPage() {
@@ -395,7 +395,7 @@ export default function JournalistsPage() {
                         {hasContact && (
                           <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Contact info available" />
                         )}
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${rel.color} hidden sm:inline`}>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded cursor-help ${rel.color} hidden sm:inline`} title={rel.tooltip}>
                           {rel.label}
                         </span>
                       </div>

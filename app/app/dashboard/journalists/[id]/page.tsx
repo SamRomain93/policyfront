@@ -118,7 +118,7 @@ function calculateRelationshipScore(
   interactions: Interaction[],
   articles: CoverageArticle[],
   lastArticleDate: string | null
-): { score: number; label: string; color: string } {
+): { score: number; label: string; color: string; tooltip: string } {
   let score = 0
 
   // Points for interactions (weighted by type)
@@ -141,10 +141,10 @@ function calculateRelationshipScore(
     else if (days < 90) score += 2
   }
 
-  if (score >= 20) return { score, label: 'Strong', color: 'bg-emerald-100 text-emerald-800' }
-  if (score >= 10) return { score, label: 'Active', color: 'bg-blue-100 text-blue-800' }
-  if (score >= 3) return { score, label: 'Developing', color: 'bg-amber-100 text-amber-800' }
-  return { score, label: 'New', color: 'bg-gray-100 text-gray-600' }
+  if (score >= 20) return { score, label: 'Strong', color: 'bg-emerald-100 text-emerald-800', tooltip: 'Frequent coverage of your topics with active engagement' }
+  if (score >= 10) return { score, label: 'Active', color: 'bg-blue-100 text-blue-800', tooltip: 'Regular coverage and some direct interactions' }
+  if (score >= 3) return { score, label: 'Developing', color: 'bg-amber-100 text-amber-800', tooltip: 'Some coverage tracked, early-stage relationship' }
+  return { score, label: 'New', color: 'bg-gray-100 text-gray-600', tooltip: 'Recently discovered, no interactions yet' }
 }
 
 export default function JournalistProfilePage() {
@@ -332,8 +332,8 @@ export default function JournalistProfilePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${relationship.color}`}>
-              {relationship.label} ({relationship.score} pts)
+            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded cursor-help ${relationship.color}`} title={relationship.tooltip}>
+              {relationship.label}
             </span>
             <button
               onClick={() => setShowEditForm(!showEditForm)}
