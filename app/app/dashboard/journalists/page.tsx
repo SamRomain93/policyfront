@@ -91,7 +91,7 @@ export default function JournalistsPage() {
   const fetchJournalists = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ sort, limit: '200' })
+      const params = new URLSearchParams({ sort, limit: '500' })
       if (user?.id) params.set('user_id', user.id)
       if (search.trim()) params.set('search', search.trim())
       if (beatFilter) params.set('beat', beatFilter)

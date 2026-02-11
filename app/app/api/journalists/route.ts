@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from('journalists')
     .select('*')
-    .limit(Math.min(limit, 200))
+    .limit(Math.min(limit, 500))
 
   if (search) {
     query = query.or(`name.ilike.%${search}%,outlet.ilike.%${search}%`)
