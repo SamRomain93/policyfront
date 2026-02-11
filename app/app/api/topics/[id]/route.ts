@@ -112,7 +112,7 @@ async function syncBillsForTopic(
         topic_id: topicId,
         user_id: userId,
         legiscan_bill_id: bill.bill_id,
-        bill_number: bill.bill_number,
+        bill_number: billNumber, // Use user's original input, not LegiScan's stripped version
         state: bill.state,
         title: bill.title,
         description: bill.description,

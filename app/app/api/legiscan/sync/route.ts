@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
             topic_id: tracked.topicId,
             user_id: tracked.userId,
             legiscan_bill_id: bill.bill_id,
-            bill_number: bill.bill_number,
+            bill_number: tracked.billNumber, // User's original input, not LegiScan's stripped version
             state: bill.state,
             title: bill.title,
             description: bill.description,
