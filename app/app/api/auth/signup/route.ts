@@ -29,6 +29,12 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
+    // Compute trial_ends_at server-side if referred (never trust client)
+    const serverTrialEnd = referred_by_code
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      : null
+    const serverSubStatus = referred_by_code ? 'trial' : null
+
     // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -58,8 +64,8 @@ export async function POST(req: NextRequest) {
         company: company || null,
         address: address || null,
         referred_by_code: referred_by_code || null,
-        trial_ends_at: trial_ends_at || null,
-        subscription_status: subscription_status || null,
+        trial_ends_at: serverTrialEnd,
+        subscription_status: serverSubStatus,
         tier: tier || 'solo',
         created_at: new Date().toISOString()
       })

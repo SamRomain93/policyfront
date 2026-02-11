@@ -48,11 +48,10 @@ export default function Settings() {
   const [referralStats, setReferralStats] = useState<ReferralStats | null>(null)
 
   useEffect(() => {
-    loadUserData()
-    loadReferralStats()
+    loadData()
   }, [])
 
-  const loadUserData = async () => {
+  const loadData = async () => {
     try {
       const res = await fetch('/api/auth/me')
       const data = await res.json()
@@ -64,6 +63,13 @@ export default function Settings() {
           address: data.user.address || '',
           company: data.user.company || ''
         })
+
+        // Load referral stats with the same user ID
+        if (data.user.id) {
+          const statsRes = await fetch(`/api/referrals/stats?userId=${data.user.id}`)
+          const stats = await statsRes.json()
+          setReferralStats(stats)
+        }
       }
     } catch (err) {
       console.error('Failed to load user data:', err)
