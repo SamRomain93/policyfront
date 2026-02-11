@@ -79,9 +79,8 @@ export default function JournalistsPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(50)
-  const [totalCount, setTotalCount] = useState(0)
-  const [totalOutlets, setTotalOutlets] = useState(0)
-  const [totalWithContact, setTotalWithContact] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)  // filtered count for pagination
+  const [globalStats, setGlobalStats] = useState({ journalists: 0, outlets: 0, withContact: 0 })
   const [saving, setSaving] = useState(false)
 
   // Add form state
@@ -109,8 +108,11 @@ export default function JournalistsPage() {
           setJournalists(data.journalists)
           setTotalCount(data.total || 0)
           if (data.stats) {
-            setTotalOutlets(data.stats.totalOutlets || 0)
-            setTotalWithContact(data.stats.totalWithContact || 0)
+            setGlobalStats({
+              journalists: data.stats.totalJournalists || 0,
+              outlets: data.stats.totalOutlets || 0,
+              withContact: data.stats.totalWithContact || 0,
+            })
           }
         } else if (Array.isArray(data)) {
           setJournalists(data)
@@ -313,15 +315,15 @@ export default function JournalistsPage() {
       {/* Stats - always shows full database totals */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{totalCount}</div>
+          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{globalStats.journalists}</div>
           <div className="text-xs text-muted uppercase tracking-wide mt-1">Journalists</div>
         </div>
         <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{totalOutlets}</div>
+          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{globalStats.outlets}</div>
           <div className="text-xs text-muted uppercase tracking-wide mt-1">Outlets</div>
         </div>
         <div className="glass-card p-4 text-center">
-          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{totalWithContact}</div>
+          <div className="font-[family-name:var(--font-serif)] text-2xl font-bold">{globalStats.withContact}</div>
           <div className="text-xs text-muted uppercase tracking-wide mt-1">With Contact</div>
         </div>
       </div>
