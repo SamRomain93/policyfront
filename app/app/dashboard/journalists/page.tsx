@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
+import { useAuth } from '../components/AuthGuard'
 
 type Journalist = {
   id: string
@@ -67,6 +68,7 @@ function relationshipBadge(score: number): { label: string; color: string } {
 }
 
 export default function JournalistsPage() {
+  const { user } = useAuth()
   const [journalists, setJournalists] = useState<Journalist[]>([])
   const [loading, setLoading] = useState(true)
   const [sort, setSort] = useState('article_count')
@@ -88,6 +90,7 @@ export default function JournalistsPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams({ sort, limit: '200' })
+      if (user?.id) params.set('user_id', user.id)
       if (search.trim()) params.set('search', search.trim())
       if (beatFilter) params.set('beat', beatFilter)
       const res = await fetch(`/api/journalists?${params}`)
@@ -100,7 +103,7 @@ export default function JournalistsPage() {
     } finally {
       setLoading(false)
     }
-  }, [sort, search, beatFilter])
+  }, [sort, search, beatFilter, user])
 
   useEffect(() => {
     const timer = setTimeout(() => fetchJournalists(), search ? 300 : 0)

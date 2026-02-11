@@ -176,9 +176,10 @@ export default function JournalistProfilePage() {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
+      const userParam = user?.id ? `?user_id=${user.id}` : ''
       const [jRes, cRes, iRes] = await Promise.all([
         fetch(`/api/journalists/${id}`),
-        fetch(`/api/journalists/${id}/coverage`),
+        fetch(`/api/journalists/${id}/coverage${userParam}`),
         fetch(`/api/journalists/${id}/interactions`),
       ])
 

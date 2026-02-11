@@ -13,22 +13,45 @@ export async function GET(
   }
 
   const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50')
+  const userId = request.nextUrl.searchParams.get('user_id')
 
-  // First try to get articles from journalist_coverage join table
-  const { data: coverageLinks } = await supabase
+  // If user_id provided, scope coverage to their topics only
+  let topicIds: string[] | null = null
+  if (userId) {
+    const { data: userTopics } = await supabase
+      .from('topics')
+      .select('id')
+      .eq('user_id', userId)
+    topicIds = (userTopics || []).map(t => t.id)
+  }
+
+  // Get articles from journalist_coverage join table
+  let coverageQuery = supabase
     .from('journalist_coverage')
     .select('mention_id, topic_id, created_at, mentions(id, title, url, outlet, excerpt, sentiment, published_at, discovered_at), topics(name)')
     .eq('journalist_id', id)
     .order('created_at', { ascending: false })
     .limit(Math.min(limit, 200))
 
+  if (topicIds && topicIds.length > 0) {
+    coverageQuery = coverageQuery.in('topic_id', topicIds)
+  }
+
+  const { data: coverageLinks } = await coverageQuery
+
   // Also get mentions directly linked via journalist_id on mentions table
-  const { data: directMentions } = await supabase
+  let mentionsQuery = supabase
     .from('mentions')
     .select('id, title, url, outlet, excerpt, sentiment, published_at, discovered_at, topic_id, topics(name)')
     .eq('journalist_id', id)
     .order('discovered_at', { ascending: false })
     .limit(Math.min(limit, 200))
+
+  if (topicIds && topicIds.length > 0) {
+    mentionsQuery = mentionsQuery.in('topic_id', topicIds)
+  }
+
+  const { data: directMentions } = await mentionsQuery
 
   // Merge and deduplicate
   const seen = new Set<string>()

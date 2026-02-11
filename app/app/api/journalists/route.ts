@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.get('search')
   const sort = request.nextUrl.searchParams.get('sort') || 'article_count'
   const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50')
+  const userId = request.nextUrl.searchParams.get('user_id')
 
   let query = supabase
     .from('journalists')
@@ -70,6 +71,40 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // If user_id provided, compute per-user article counts from their topics
+  if (userId && data) {
+    // Get this user's topic IDs
+    const { data: userTopics } = await supabase
+      .from('topics')
+      .select('id')
+      .eq('user_id', userId)
+
+    const topicIds = (userTopics || []).map(t => t.id)
+
+    if (topicIds.length > 0) {
+      // Get coverage counts per journalist for this user's topics
+      const { data: coverageCounts } = await supabase
+        .from('journalist_coverage')
+        .select('journalist_id, topic_id')
+        .in('topic_id', topicIds)
+
+      const countMap: Record<string, number> = {}
+      for (const c of coverageCounts || []) {
+        countMap[c.journalist_id] = (countMap[c.journalist_id] || 0) + 1
+      }
+
+      // Override article_count with user-scoped count
+      for (const j of data) {
+        j.article_count = countMap[j.id] || 0
+      }
+    }
+
+    // Re-sort after adjusting counts
+    if (sort === 'article_count' || !sort) {
+      data.sort((a: { article_count: number }, b: { article_count: number }) => (b.article_count || 0) - (a.article_count || 0))
+    }
   }
 
   return NextResponse.json(data)
