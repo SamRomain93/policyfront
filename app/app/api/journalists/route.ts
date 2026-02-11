@@ -1,6 +1,34 @@
 import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
 
+// Map specific topic names to broad journalist beat categories
+function inferBeat(topicOrKeyword: string): string {
+  const lower = topicOrKeyword.toLowerCase()
+
+  // Energy
+  if (/solar|energy|nv energy|demand charge|utility|grid|power|electric|renewable|wind|nuclear|oil|gas|fossil/.test(lower)) return 'Energy'
+  // Healthcare
+  if (/health|medical|pharma|hospital|insurance|medicare|medicaid/.test(lower)) return 'Healthcare'
+  // Education
+  if (/school|education|charter|university|college|student/.test(lower)) return 'Education'
+  // Environment
+  if (/environment|climate|emission|pollution|conservation|epa/.test(lower)) return 'Environment'
+  // Housing / Real Estate
+  if (/housing|real estate|rent|mortgage|zoning|permit|construction/.test(lower)) return 'Housing'
+  // Finance / Economy
+  if (/finance|banking|tax|budget|economic|gold|silver|crypto/.test(lower)) return 'Finance'
+  // Technology
+  if (/tech|ai|software|data|cyber|internet|telecom/.test(lower)) return 'Technology'
+  // Transportation
+  if (/transport|highway|rail|transit|aviation|ev|vehicle/.test(lower)) return 'Transportation'
+  // State / Local Government
+  if (/legislature|governor|county|city|state|bill|law|regulation|checkoff|site plan/.test(lower)) return 'State Government'
+  // Federal Government
+  if (/federal|congress|senate|house|white house|executive order/.test(lower)) return 'Federal Government'
+
+  return 'Policy'  // default broad category
+}
+
 export async function GET(request: NextRequest) {
   const supabase = getSupabase()
   if (!supabase) {
@@ -97,6 +125,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(data, { status: 201 })
     }
 
+    // Map topic-specific names to broad beat categories
+    const beatCategory = beat ? inferBeat(beat) : null
+
     // Check if journalist exists
     const { data: existing } = await supabase
       .from('journalists')
@@ -126,11 +157,11 @@ export async function POST(request: NextRequest) {
         updates.avg_sentiment = ((oldAvg * oldCount) + sentiment) / (oldCount + 1)
       }
 
-      // Merge beats
-      if (beat) {
+      // Merge beats (broad categories, not specific topics)
+      if (beatCategory) {
         const currentBeats: string[] = existing.beat || []
-        if (!currentBeats.includes(beat)) {
-          updates.beat = [...currentBeats, beat]
+        if (!currentBeats.includes(beatCategory)) {
+          updates.beat = [...currentBeats, beatCategory]
         }
       }
 
@@ -169,7 +200,7 @@ export async function POST(request: NextRequest) {
           twitter: twitter || null,
           linkedin: linkedin || null,
           website: website || null,
-          beat: beat ? [beat] : [],
+          beat: beatCategory ? [beatCategory] : [],
           article_count: 1,
           avg_sentiment: sentiment ?? null,
           last_article_date: new Date().toISOString(),
