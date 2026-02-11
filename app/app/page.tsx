@@ -1,6 +1,7 @@
 import WaitlistForm from './components/WaitlistForm'
 import SiteNav from './components/SiteNav'
 import SiteFooter from './components/SiteFooter'
+import Link from 'next/link'
 
 export default function Home() {
   return (
@@ -212,7 +213,7 @@ export default function Home() {
                 <span className="text-muted ml-1">/mo</span>
               </div>
               <ul className="space-y-4 mb-10 flex-1">
-                {['5 topics tracked', '2 states', 'Telegram alerts', 'Daily digest email'].map((f) => (
+                {['3 topics tracked', '50 mentions/mo', 'Basic alerts', 'Daily digest email'].map((f) => (
                   <li key={f} className="flex items-center gap-3 text-[15px]">
                     <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -221,6 +222,12 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+              <Link
+                href="/dashboard/billing"
+                className="block w-full text-center bg-white border border-near-black text-near-black py-3 rounded-full text-sm font-medium hover:bg-near-black hover:text-cream-50 transition"
+              >
+                Get Started
+              </Link>
             </div>
 
             {/* Professional */}
@@ -239,7 +246,7 @@ export default function Home() {
                 <span className="text-muted ml-1">/mo</span>
               </div>
               <ul className="space-y-4 mb-10 flex-1">
-                {['25 topics tracked', 'All 50 states', 'Sentiment analysis', 'Export reports', 'Priority support'].map((f) => (
+                {['10 topics tracked', 'Unlimited mentions', 'Journalist CRM', 'Export reports', 'Priority support'].map((f) => (
                   <li key={f} className="flex items-center gap-3 text-[15px]">
                     <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -248,6 +255,12 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+              <Link
+                href="/dashboard/billing"
+                className="block w-full text-center bg-near-black text-cream-50 py-3 rounded-full text-sm font-medium hover:bg-near-black/85 transition"
+              >
+                Get Started
+              </Link>
             </div>
 
             {/* Agency */}
@@ -261,7 +274,7 @@ export default function Home() {
                 <span className="text-muted ml-1">/mo</span>
               </div>
               <ul className="space-y-4 mb-10 flex-1">
-                {['Unlimited topics', 'All 50 states', 'Multi-user access', 'API access', 'White-label reports'].map((f) => (
+                {['Unlimited topics', 'Unlimited mentions', 'Full CRM access', 'API access', 'Priority support'].map((f) => (
                   <li key={f} className="flex items-center gap-3 text-[15px]">
                     <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -270,6 +283,12 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+              <Link
+                href="/dashboard/billing"
+                className="block w-full text-center bg-white border border-near-black text-near-black py-3 rounded-full text-sm font-medium hover:bg-near-black hover:text-cream-50 transition"
+              >
+                Get Started
+              </Link>
             </div>
           </div>
 
