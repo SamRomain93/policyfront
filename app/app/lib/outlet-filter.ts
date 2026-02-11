@@ -2,14 +2,16 @@
 // Government/Legislature sites, bill trackers, social media, etc.
 
 const BLOCKED_PATTERNS = [
-  // Government & Legislature
+  // Government & Legislature (any level)
   /\.gov$/,
+  /\.gov\//,
   /legislature\./,
   /legis\./,
   /leg\.state\./,
+  /\.state\.[a-z]{2}\.us/,  // leg.state.fl.us, arkleg.state.ar.us, etc.
   /mgaleg\./,
 
-  // Bill tracking tools (not news)
+  // Bill tracking / vote tracking tools (not news)
   /legiscan\.com/,
   /billtrack50\.com/,
   /fastdemocracy\.com/,
@@ -17,6 +19,7 @@ const BLOCKED_PATTERNS = [
   /citizenportal\./,
   /openstates\.org/,
   /trackbill\.com/,
+  /recordedvote\.org/,
 
   // Social media
   /facebook\.com/,
@@ -28,6 +31,13 @@ const BLOCKED_PATTERNS = [
   /reddit\.com/,
   /youtube\.com/,
   /spotify\.com/,
+  /substack\.com/,  // personal newsletters, not news outlets
+
+  // Law firms / bar associations
+  /law\.com$/,
+  /plaw\.com/,
+  /msba\.org/,
+  /barass/,
 
   // Meeting minutes / internal docs
   /eminutes\.com/,
