@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 type FormState = 'idle' | 'loading' | 'success' | 'error'
 
@@ -57,42 +58,53 @@ export default function WaitlistForm({ variant = 'default' }: { variant?: 'defau
   const isInline = variant === 'inline'
 
   return (
-    <form onSubmit={handleSubmit} className={`flex ${isInline ? 'flex-row' : 'flex-col sm:flex-row'} gap-3 ${isInline ? 'max-w-md' : 'max-w-lg'}`}>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => { setState('idle'); setEmail(e.target.value) }}
-        placeholder="Enter your work email"
-        required
-        className={`flex-1 px-5 py-3.5 rounded-full text-base outline-none transition ${
-          isDark
-            ? 'bg-white/10 border border-white/20 text-cream-50 placeholder:text-cream-200/50 focus:border-white/40'
-            : 'bg-white border border-border text-near-black placeholder:text-light-muted focus:border-accent/40 focus:ring-2 focus:ring-accent/10'
-        } ${state === 'error' ? (isDark ? 'border-red-400' : 'border-red-500') : ''}`}
-      />
-      <button
-        type="submit"
-        disabled={state === 'loading'}
-        className={`px-7 py-3.5 rounded-full text-base font-medium transition whitespace-nowrap flex items-center justify-center gap-2 ${
-          isDark
-            ? 'bg-cream-50 text-near-black hover:bg-white disabled:opacity-60'
-            : 'bg-near-black text-cream-50 hover:bg-near-black/85 disabled:opacity-60'
-        }`}
-      >
-        {state === 'loading' ? (
-          <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <>
-            Join Waitlist
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </>
+    <div className="w-full flex flex-col items-center gap-3">
+      <form onSubmit={handleSubmit} className={`flex ${isInline ? 'flex-row' : 'flex-col sm:flex-row'} gap-3 ${isInline ? 'max-w-md' : 'max-w-lg'} w-full`}>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => { setState('idle'); setEmail(e.target.value) }}
+          placeholder="Enter your work email"
+          required
+          className={`flex-1 px-5 py-3.5 rounded-full text-base outline-none transition ${
+            isDark
+              ? 'bg-white/10 border border-white/20 text-cream-50 placeholder:text-cream-200/50 focus:border-white/40'
+              : 'bg-white border border-border text-near-black placeholder:text-light-muted focus:border-accent/40 focus:ring-2 focus:ring-accent/10'
+          } ${state === 'error' ? (isDark ? 'border-red-400' : 'border-red-500') : ''}`}
+        />
+        <button
+          type="submit"
+          disabled={state === 'loading'}
+          className={`px-7 py-3.5 rounded-full text-base font-medium transition whitespace-nowrap flex items-center justify-center gap-2 ${
+            isDark
+              ? 'bg-cream-50 text-near-black hover:bg-white disabled:opacity-60'
+              : 'bg-near-black text-cream-50 hover:bg-near-black/85 disabled:opacity-60'
+          }`}
+        >
+          {state === 'loading' ? (
+            <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              Join Waitlist
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </>
+          )}
+        </button>
+        {state === 'error' && errorMsg && (
+          <p className={`text-sm mt-1 ${isDark ? 'text-red-400' : 'text-red-500'}`}>{errorMsg}</p>
         )}
-      </button>
-      {state === 'error' && errorMsg && (
-        <p className={`text-sm mt-1 ${isDark ? 'text-red-400' : 'text-red-500'}`}>{errorMsg}</p>
-      )}
-    </form>
+      </form>
+      <p className={`text-sm ${isDark ? 'text-cream-200/70' : 'text-muted'}`}>
+        Have a referral code?{' '}
+        <Link 
+          href="/signup-referral" 
+          className={`font-medium ${isDark ? 'text-cream-50 hover:text-white' : 'text-near-black hover:underline'} transition`}
+        >
+          Sign up here
+        </Link>
+      </p>
+    </div>
   )
 }

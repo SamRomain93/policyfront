@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
         const plan = session.metadata?.plan
 
         if (userId && plan) {
+          // Update user subscription
           await supabase
             .from('users')
             .update({
@@ -56,8 +57,57 @@ export async function POST(req: NextRequest) {
               plan_status: 'active',
               stripe_customer_id: session.customer as string,
               stripe_subscription_id: session.subscription as string,
+              subscription_status: 'active',
+              trial_ends_at: null
             })
             .eq('id', userId)
+
+          // Apply referral credit if this user was referred
+          const { data: conversionData } = await supabase
+            .from('referral_conversions')
+            .select('id, referrer_id, credited')
+            .eq('referee_id', userId)
+            .eq('credited', false)
+            .single()
+
+          if (conversionData && conversionData.referrer_id) {
+            // Get referrer's current subscription end date
+            const { data: referrerData } = await supabase
+              .from('users')
+              .select('subscription_end_at, subscription_credits')
+              .eq('id', conversionData.referrer_id)
+              .single()
+
+            if (referrerData) {
+              const now = new Date()
+              const currentEnd = referrerData.subscription_end_at 
+                ? new Date(referrerData.subscription_end_at)
+                : now
+              
+              // Add 30 days to subscription
+              const newEnd = new Date(
+                Math.max(currentEnd.getTime(), now.getTime()) + (30 * 24 * 60 * 60 * 1000)
+              )
+
+              // Update referrer with credit
+              await supabase
+                .from('users')
+                .update({
+                  subscription_credits: (referrerData.subscription_credits || 0) + 1,
+                  subscription_end_at: newEnd.toISOString()
+                })
+                .eq('id', conversionData.referrer_id)
+
+              // Mark conversion as credited
+              await supabase
+                .from('referral_conversions')
+                .update({
+                  converted_at: now.toISOString(),
+                  credited: true
+                })
+                .eq('id', conversionData.id)
+            }
+          }
         }
         break
       }
