@@ -181,6 +181,7 @@ async function runMonitor(baseUrl: string) {
                       email: authorInfo.email,
                       beat: topic.name,
                       mention_id: insertedMention.id,
+                      topic_id: topic.id,
                     }),
                   })
                 } catch { /* best effort */ }
@@ -411,6 +412,7 @@ async function runMonitor(baseUrl: string) {
                     ...journalist,
                     beat: topic.name,
                     mention_id: insertedMention?.id,
+                    topic_id: topic.id,
                   }),
                 })
               }

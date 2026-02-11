@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
 
   const outlet = request.nextUrl.searchParams.get('outlet')
   const beat = request.nextUrl.searchParams.get('beat')
+  const search = request.nextUrl.searchParams.get('search')
   const sort = request.nextUrl.searchParams.get('sort') || 'article_count'
   const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50')
 
@@ -16,6 +17,10 @@ export async function GET(request: NextRequest) {
     .from('journalists')
     .select('*')
     .limit(Math.min(limit, 200))
+
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,outlet.ilike.%${search}%`)
+  }
 
   if (outlet) {
     query = query.eq('outlet', outlet)
@@ -51,10 +56,45 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, outlet, email, phone, twitter, linkedin, website, beat, sentiment, mention_id } = body
+    const { name, outlet, email, phone, twitter, linkedin, website, beat, sentiment, mention_id, topic_id, manual } = body
 
     if (!name) {
       return NextResponse.json({ error: 'name required' }, { status: 400 })
+    }
+
+    // Manual add: insert a journalist directly without incrementing article_count
+    if (manual) {
+      const { data: existing } = await supabase
+        .from('journalists')
+        .select('id')
+        .eq('name', name)
+        .eq('outlet', outlet || '')
+        .maybeSingle()
+
+      if (existing) {
+        return NextResponse.json({ error: 'Journalist already exists', id: existing.id }, { status: 409 })
+      }
+
+      const { data, error } = await supabase
+        .from('journalists')
+        .insert([{
+          name,
+          outlet: outlet || null,
+          email: email || null,
+          phone: phone || null,
+          twitter: twitter || null,
+          linkedin: linkedin || null,
+          website: website || null,
+          beat: Array.isArray(beat) ? beat : beat ? [beat] : [],
+          article_count: 0,
+          avg_sentiment: null,
+          last_article_date: null,
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+      return NextResponse.json(data, { status: 201 })
     }
 
     // Check if journalist exists
@@ -106,6 +146,14 @@ export async function POST(request: NextRequest) {
       // Link mention to journalist
       if (mention_id) {
         await supabase.from('mentions').update({ journalist_id: data.id }).eq('id', mention_id)
+
+        // Auto-link coverage
+        if (topic_id) {
+          await supabase.from('journalist_coverage').upsert(
+            { journalist_id: data.id, mention_id, topic_id },
+            { onConflict: 'journalist_id,mention_id' }
+          )
+        }
       }
 
       return NextResponse.json(data)
@@ -134,6 +182,14 @@ export async function POST(request: NextRequest) {
       // Link mention to journalist
       if (mention_id) {
         await supabase.from('mentions').update({ journalist_id: data.id }).eq('id', mention_id)
+
+        // Auto-link coverage
+        if (topic_id) {
+          await supabase.from('journalist_coverage').upsert(
+            { journalist_id: data.id, mention_id, topic_id },
+            { onConflict: 'journalist_id,mention_id' }
+          )
+        }
       }
 
       return NextResponse.json(data, { status: 201 })
