@@ -137,6 +137,7 @@ async function runMonitor(baseUrl: string) {
         // Scrape full content only for NEW articles (worth the cost for sentiment + journalist extraction)
         let fullContent = ''
         let rawHtml = ''
+        let scrapeMetadata: Record<string, unknown> = {}
         try {
           const scrapeRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
@@ -153,6 +154,7 @@ async function runMonitor(baseUrl: string) {
             const scrapeData = await scrapeRes.json()
             fullContent = scrapeData.data?.markdown?.substring(0, 5000) || ''
             rawHtml = scrapeData.data?.html?.substring(0, 20000) || ''
+            scrapeMetadata = scrapeData.data?.metadata || {}
           }
         } catch {
           // Scrape failed, use metadata only
@@ -197,7 +199,7 @@ async function runMonitor(baseUrl: string) {
         }
 
         // Extract publish date: try Firecrawl metadata, then HTML meta tags, then fallback to now
-        let publishedAt = item.metadata?.published_date || item.metadata?.publishedDate || ''
+        let publishedAt = scrapeMetadata?.publishedDate as string || scrapeMetadata?.published_date as string || item.metadata?.published_date || item.metadata?.publishedDate || ''
         if (!publishedAt && rawHtml) {
           // Try common meta tags for publish date
           const datePatterns = [
@@ -298,7 +300,8 @@ async function runMonitor(baseUrl: string) {
               const journalist = extractJournalist(
                 rawHtml || '',
                 fullContent || item.metadata?.description || '',
-                outlet
+                outlet,
+                scrapeMetadata
               )
               if (journalist) {
                 await fetch(`${baseUrl}/api/journalists`, {

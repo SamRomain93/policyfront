@@ -129,9 +129,16 @@ export function extractLinkedIn(html: string, authorName: string | null): string
 export function extractJournalist(
   html: string,
   text: string,
-  outlet: string | null
+  outlet: string | null,
+  metadata?: Record<string, unknown>
 ): ExtractedJournalist | null {
-  const name = extractByline(html, text)
+  // Try metadata.author first (Firecrawl provides this reliably)
+  let name: string | null = null
+  if (metadata?.author && typeof metadata.author === 'string') {
+    const cleaned = cleanName(metadata.author)
+    if (isValidName(cleaned)) name = cleaned
+  }
+  if (!name) name = extractByline(html, text)
   if (!name) return null
 
   const contacts = extractContactInfo(html, text, name)
@@ -165,5 +172,10 @@ function isValidName(name: string): boolean {
   if (!/^[A-Z]/.test(name)) return false
   // No weird characters
   if (/[0-9@#$%]/.test(name)) return false
+  // Skip generic placeholders
+  const lower = name.toLowerCase()
+  if (['guest author', 'staff writer', 'staff reporter', 'editorial board',
+       'news desk', 'associated press', 'ap news', 'reuters', 'admin',
+       'contributor', 'guest contributor', 'special to'].some(g => lower.includes(g))) return false
   return true
 }
