@@ -1,5 +1,6 @@
 import { getSupabase } from '@/app/lib/supabase'
 import { NextResponse, NextRequest } from 'next/server'
+import { findBillByNumber, getBill, BILL_STATUS } from '@/app/lib/legiscan'
 
 export async function GET(request: NextRequest) {
   const supabase = getSupabase()
@@ -59,8 +60,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Auto-sync bills if any bill_ids provided
+    if (data && bill_ids && bill_ids.length > 0 && process.env.LEGISCAN_API_KEY) {
+      syncNewTopicBills(data.id, bill_ids, state || '', user_id, supabase).catch(err => {
+        console.error('Auto bill sync failed:', err)
+      })
+    }
+
     return NextResponse.json(data, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+}
+
+async function syncNewTopicBills(
+  topicId: string,
+  billIds: string[],
+  state: string,
+  userId: string | null,
+  supabase: ReturnType<typeof getSupabase>
+) {
+  if (!supabase) return
+  for (const billNumber of billIds) {
+    try {
+      const result = await findBillByNumber(billNumber, state || 'US')
+      if (!result) continue
+      const bill = await getBill(result.bill_id)
+      const statusText = BILL_STATUS[bill.status] || 'Unknown'
+      const lastAction = bill.history?.[bill.history.length - 1]
+
+      await supabase.from('bill_tracking').insert([{
+        topic_id: topicId,
+        user_id: userId,
+        legiscan_bill_id: bill.bill_id,
+        bill_number: bill.bill_number,
+        state: bill.state,
+        title: bill.title,
+        description: bill.description,
+        status: bill.status,
+        status_text: statusText,
+        status_date: bill.status_date,
+        change_hash: bill.change_hash,
+        current_body: bill.current_body,
+        committee_name: bill.committee?.name || null,
+        legiscan_url: bill.url,
+        state_url: bill.state_link,
+        last_action: lastAction?.action || null,
+        last_action_date: lastAction?.date || null,
+        sponsors: bill.sponsors?.map(s => ({ name: s.name, party: s.party, role: s.role, district: s.district })) || [],
+        history: bill.history?.slice(-10) || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }])
+    } catch (err) {
+      console.error(`Failed to sync bill ${billNumber}:`, err)
+    }
+    await new Promise(r => setTimeout(r, 200))
   }
 }

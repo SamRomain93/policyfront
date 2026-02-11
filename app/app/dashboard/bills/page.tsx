@@ -42,7 +42,6 @@ export default function BillsPage() {
   const { user } = useAuth()
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const fetchBills = useCallback(async () => {
@@ -76,19 +75,6 @@ export default function BillsPage() {
     }
   }
 
-  const resyncBills = async () => {
-    setSyncing(true)
-    try {
-      const res = await fetch('/api/bills/sync', { method: 'POST' })
-      if (res.ok) {
-        await fetchBills()
-      }
-    } catch {
-      // silent
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -105,25 +91,7 @@ export default function BillsPage() {
           <h1 className="font-[family-name:var(--font-serif)] text-2xl mb-1">Bill Tracker</h1>
           <p className="text-sm text-muted">Real-time legislative status via LegiScan</p>
         </div>
-        <button
-          onClick={resyncBills}
-          disabled={syncing}
-          className="bg-near-black text-cream-50 px-5 py-2.5 rounded-full text-sm font-medium hover:bg-near-black/85 transition disabled:opacity-50 flex items-center gap-2"
-        >
-          {syncing ? (
-            <>
-              <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Syncing...
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-              </svg>
-              Sync Now
-            </>
-          )}
-        </button>
+
       </div>
 
       {bills.length === 0 ? (
