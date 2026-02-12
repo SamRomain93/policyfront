@@ -72,9 +72,10 @@ async function runMonitor(baseUrl: string) {
     ]
     const termQuery = allTerms.join(' OR ')
 
-    // Scope by state name for precision
+    // Scope by state name, but keep the query broad enough to catch trade/outlet phrasing
+    // ("policy legislation" was too restrictive and caused misses like UtilityDive coverage)
     const stateScope = stateName ? ` ${stateName}` : ''
-    const query = `(${termQuery})${stateScope} policy legislation`
+    const query = `(${termQuery})${stateScope}`
 
     try {
       const firecrawlKey = process.env.FIRECRAWL_API_KEY
@@ -203,7 +204,7 @@ async function runMonitor(baseUrl: string) {
         },
         body: JSON.stringify({
           query,
-          limit: 10,
+          limit: 25,
           lang: 'en',
           country: 'us',
         }),
