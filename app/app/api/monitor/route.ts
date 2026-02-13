@@ -300,7 +300,8 @@ async function runMonitor(baseUrl: string) {
           continue
         }
 
-        // Extract publish date: try Firecrawl metadata, then HTML meta tags, then fallback to now
+        // Extract publish date: try Firecrawl metadata, then HTML meta tags
+        // Never fabricate a publish date if we can't find one
         let publishedAt = scrapeMetadata?.publishedDate as string || scrapeMetadata?.published_date as string || item.metadata?.published_date || item.metadata?.publishedDate || ''
         if (!publishedAt && rawHtml) {
           // Try common meta tags for publish date
@@ -323,7 +324,7 @@ async function runMonitor(baseUrl: string) {
             }
           }
         }
-        if (!publishedAt) publishedAt = new Date().toISOString()
+        if (!publishedAt) publishedAt = ''
 
         const { data: insertedMention, error: insertError } = await supabase
           .from('mentions')
@@ -335,7 +336,7 @@ async function runMonitor(baseUrl: string) {
             excerpt: item.metadata?.description || fullContent?.substring(0, 300) || '',
             outlet,
             discovered_at: new Date().toISOString(),
-            published_at: publishedAt,
+            published_at: publishedAt || null,
             source_type: 'rss',
           }])
           .select('id')
