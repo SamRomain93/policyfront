@@ -31,9 +31,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoading(false)
+      router.replace('/login')
+    }, 2000)
+
     const checkAuth = async () => {
       const { data: { session: s } } = await supabase.auth.getSession()
       if (!s) {
+        clearTimeout(timeout)
         router.replace('/login')
         setLoading(false)
         return
@@ -51,6 +57,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         ...userData
       }
 
+      clearTimeout(timeout)
       setUser(extendedUser)
       setSession(s)
 
@@ -70,6 +77,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
       if (!s) {
+        clearTimeout(timeout)
         router.replace('/login')
         setLoading(false)
         return
@@ -87,6 +95,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         ...userData
       }
 
+      clearTimeout(timeout)
       setUser(extendedUser)
       setSession(s)
 
@@ -102,7 +111,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [router])
 
   if (loading) {
