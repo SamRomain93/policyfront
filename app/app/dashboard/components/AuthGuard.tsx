@@ -35,6 +35,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       const { data: { session: s } } = await supabase.auth.getSession()
       if (!s) {
         router.replace('/login')
+        setLoading(false)
         return
       }
 
@@ -70,6 +71,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
       if (!s) {
         router.replace('/login')
+        setLoading(false)
         return
       }
 
