@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       .single()
 
     return NextResponse.json({
-      user: { ...authUser, ...userData }
+      user: { ...userData, ...authUser, id: authUser.id }
     })
   }
 
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      user: { ...authUser, ...userData }
+      user: { ...userData, ...authUser, id: authUser.id }
     })
 
   } catch (error) {
