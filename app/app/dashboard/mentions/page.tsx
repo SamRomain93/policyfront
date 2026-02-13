@@ -333,12 +333,14 @@ export default function MentionsPage() {
                         {m.outlet && (
                           <span className="text-[11px] text-muted font-medium">{m.outlet}</span>
                         )}
-                        {m.published_at && m.published_at !== m.discovered_at ? (
-                          <span className="text-[11px] text-light-muted" title={`Found ${timeAgo(m.discovered_at)}`}>
+                        {m.published_at ? (
+                          <span className="text-[11px] text-light-muted">
                             Published {timeAgo(m.published_at)}
+                            <span className="mx-1">·</span>
+                            Found {timeAgo(m.discovered_at)}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-light-muted">{timeAgo(m.discovered_at)}</span>
+                          <span className="text-[11px] text-light-muted">Found {timeAgo(m.discovered_at)}</span>
                         )}
                         {hasRelated && (
                           <span className="text-[11px] text-light-muted">+{story.related.length} more</span>
@@ -380,7 +382,9 @@ export default function MentionsPage() {
                               <div className={`w-1 h-1 rounded-full shrink-0 ${sentimentDot(r.sentiment)}`} />
                               <span className="text-xs font-medium truncate flex-1">{r.title || r.url}</span>
                               <span className="text-[10px] text-muted shrink-0">{r.outlet}</span>
-                              <span className="text-[10px] text-light-muted shrink-0">{r.published_at ? timeAgo(r.published_at) : timeAgo(r.discovered_at)}</span>
+                              <span className="text-[10px] text-light-muted shrink-0">
+                                {r.published_at ? `Published ${timeAgo(r.published_at)} · Found ${timeAgo(r.discovered_at)}` : `Found ${timeAgo(r.discovered_at)}`}
+                              </span>
                             </div>
                           </a>
                         ))}
