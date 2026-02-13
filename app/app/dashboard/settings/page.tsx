@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import BillingPage from '../billing/page'
 import { useRouter } from 'next/navigation'
 
 interface ReferralStats {
@@ -252,9 +253,7 @@ export default function Settings() {
 
       {/* Billing Tab */}
       {activeTab === 'billing' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-gray-600">Billing settings coming soon...</p>
-        </div>
+        <BillingPage />
       )}
 
       {/* Referrals Tab */}
