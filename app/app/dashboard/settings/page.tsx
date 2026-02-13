@@ -31,6 +31,14 @@ interface ReferralStats {
   }
 }
 
+
+const emptyReferralStats: ReferralStats = {
+  codes: [],
+  stats: { totalSignups: 0, activeTrials: 0, paidConversions: 0, monthsEarned: 0 },
+  referrals: [],
+  generation: { canGenerateMore: true, codesRemaining: 5, daysUntilReset: 0 }
+}
+
 export default function Settings() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -68,12 +76,17 @@ export default function Settings() {
         // Load referral stats with the same user ID
         if (data.user.id) {
           const statsRes = await fetch(`/api/referrals/stats?userId=${data.user.id}`)
-          const stats = await statsRes.json()
-          setReferralStats(stats)
+          if (statsRes.ok) {
+            const stats = await statsRes.json()
+            setReferralStats(stats)
+          } else {
+            setReferralStats(emptyReferralStats)
+          }
         }
       }
     } catch (err) {
       console.error('Failed to load user data:', err)
+      setReferralStats(emptyReferralStats)
     } finally {
       setLoading(false)
     }
@@ -85,11 +98,16 @@ export default function Settings() {
       const data = await res.json()
       if (data.user?.id) {
         const statsRes = await fetch(`/api/referrals/stats?userId=${data.user.id}`)
-        const stats = await statsRes.json()
-        setReferralStats(stats)
+        if (statsRes.ok) {
+          const stats = await statsRes.json()
+          setReferralStats(stats)
+        } else {
+          setReferralStats(emptyReferralStats)
+        }
       }
     } catch (err) {
       console.error('Failed to load referral stats:', err)
+      setReferralStats(emptyReferralStats)
     }
   }
 
