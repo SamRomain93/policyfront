@@ -228,16 +228,7 @@ export default function Settings() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
               disabled
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">User ID</label>
-            <input
-              type="text"
-              value={(userData as any).id || ''}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-xs"
-              disabled
-            />
+            <div className="mt-2 text-xs text-gray-500">User ID: <span className="font-mono text-gray-700">{(userData as any).id || '—'}</span></div>
           </div>
 
           <div>
