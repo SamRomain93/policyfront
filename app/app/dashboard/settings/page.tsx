@@ -47,6 +47,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'referrals'>('profile')
 
   const [userData, setUserData] = useState({
+    id: '',
     name: '',
     email: '',
     phone: '',
@@ -66,6 +67,7 @@ export default function Settings() {
       const data = await res.json()
       if (data.user) {
         setUserData({
+          id: data.user.id || '',
           name: data.user.name || '',
           email: data.user.email || '',
           phone: data.user.phone || '',
@@ -224,6 +226,16 @@ export default function Settings() {
               value={userData.email}
               onChange={(e) => setUserData({ ...userData, email: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+              disabled
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">User ID</label>
+            <input
+              type="text"
+              value={(userData as any).id || ''}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-xs"
               disabled
             />
           </div>
