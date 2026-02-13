@@ -52,6 +52,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         .eq('id', s.user.id)
         .single()
 
+      if (!userData) {
+        clearTimeout(timeout)
+        await supabase.auth.signOut()
+        router.replace('/login')
+        setLoading(false)
+        return
+      }
+
       const extendedUser = {
         ...s.user,
         ...userData
@@ -89,6 +97,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         .select('name, trial_ends_at, subscription_status')
         .eq('id', s.user.id)
         .single()
+
+      if (!userData) {
+        clearTimeout(timeout)
+        await supabase.auth.signOut()
+        router.replace('/login')
+        setLoading(false)
+        return
+      }
 
       const extendedUser = {
         ...s.user,

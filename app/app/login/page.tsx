@@ -26,8 +26,23 @@ export default function LoginPage() {
 
   useEffect(() => {
     // Check if already authenticated
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/dashboard')
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      try {
+        const res = await fetch('/api/auth/me')
+        if (!res.ok) {
+          await supabase.auth.signOut()
+          return
+        }
+        const data = await res.json()
+        if (!data?.user?.id) {
+          await supabase.auth.signOut()
+          return
+        }
+        router.replace('/dashboard')
+      } catch {
+        // If auth check fails, stay on login
+      }
     })
   }, [router])
 
